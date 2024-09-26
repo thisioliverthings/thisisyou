@@ -1,4 +1,4 @@
-require('dotenv').config();  // لإدارة متغيرات البيئة
+require('dotenv').config(); // لإدارة متغيرات البيئة
 const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -33,24 +34,24 @@ app.use(limiter);
 
 // إعداد EJS كقالب العرض
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));  // المسار سيكون مباشرة في نفس الدليل
 
 // تقديم الملفات الثابتة من مجلد public
-app.use(express.static(path.join(__dirname, 'public')));  // يمكن الإبقاء على مجلد 'public' للملفات الثابتة
+app.use(express.static(path.join(__dirname, 'public')));
 
-// استيراد المسارات من ملف index.js (في نفس المسار)
-const indexRouter = require('./index');
-app.use('/', indexRouter);
+// مسارات
+app.get('/', (req, res) => {
+  res.render('index', { title: 'الصفحة الرئيسية' });
+});
 
 // التعامل مع الأخطاء 404
-app.use((req, res, next) => {
-  res.status(404).render('404', { title: 'Page Not Found' });
+app.use((req, res) => {
+  res.status(404).render('404', { title: 'صفحة غير موجودة' });
 });
 
 // التعامل مع الأخطاء
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error(err.stack);
-  res.status(500).render('error', { title: 'Server Error' });
+  res.status(500).render('error', { title: 'خطأ في الخادم' });
 });
 
 // تشغيل الخادم
