@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>نتائج البحث</h1>
+    <div class="anime-list">
+        <% searchResults.forEach(anime => { %>
+            <div class="anime-item">
+                <img src="<%= anime.coverImage.medium %>" alt="<%= anime.title.romaji %>">
+                <h2><%= anime.title.romaji %></h2>
+                <p><%= anime.description ? anime.description.substring(0, 100) + '...' : 'لا يوجد وصف.' %></p>
+            </div>
+        <% }); %>
+    </div>
+    <a href="/">العودة إلى الصفحة الرئيسية</a>
+</body>
+</html>
