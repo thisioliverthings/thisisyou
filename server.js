@@ -36,7 +36,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname)); // استخدام المسار الحالي للعرض
 
 // تقديم الملفات الثابتة من مجلد public
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname));
 
 // مسارات
 app.get('/', (req, res) => {
