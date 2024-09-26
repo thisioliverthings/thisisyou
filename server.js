@@ -6,7 +6,6 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { body, validationResult } = require('express-validator');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,6 +33,7 @@ app.use(limiter);
 
 // إعداد EJS كقالب العرض
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname)); // استخدام المسار الحالي للعرض
 
 // تقديم الملفات الثابتة من مجلد public
 app.use(express.static(path.join(__dirname, 'public')));
