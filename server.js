@@ -4,8 +4,8 @@ const helmet = require('helmet');
 const compression = require('compression');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const axios = require('axios'); // لجلب البيانات من API
 const rateLimit = require('express-rate-limit');
-const { body, validationResult } = require('express-validator'); // لتحسين التحقق من صحة المدخلات
 const cors = require('cors'); // لتفعيل CORS
 
 const app = express();
@@ -42,23 +42,68 @@ app.set('views', __dirname); // استخدام المسار الحالي للع�
 // تقديم الملفات الثابتة من الجذر
 app.use(express.static(__dirname));
 
+// استعلام GraphQL لجلب الأنمي من Anilist
+const anilistQuery = (animeName) => {
+  return {
+    query: `
+      query ($search: String) {
+        Media(search: $search, type: ANIME) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          description
+          episodes
+          coverImage {
+            large
+          }
+          genres
+          averageScore
+          status
+        }
+      }
+    `,
+    variables: { search: animeName }
+  };
+};
+
 // مسار الصفحة الرئيسية
 app.get('/', (req, res) => {
   res.render('index', { title: 'الصفحة الرئيسية' });
 });
 
-// مسار البحث (مثال)
-app.get('/search', [
-  body('q').isString().notEmpty().withMessage('يرجى إدخال نص البحث')
-], (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+// مسار البحث عن أنمي في Anilist
+app.get('/search', async (req, res) => {
+  const animeName = req.query.q;
+
+  if (!animeName) {
+    return res.status(400).json({ error: 'يرجى إدخال اسم الأنمي' });
   }
 
-  const query = req.query.q;
-  // منطق البحث الخاص بك هنا
-  res.json({ message: `نتائج البحث عن: ${query}` }); // إرسال النتائج كـ JSON
+  try {
+    const response = await axios.post('https://graphql.anilist.co', anilistQuery(animeName), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    });
+
+    const animeData = response.data.data.Media;
+    res.json({
+      title: animeData.title.romaji || animeData.title.english || animeData.title.native,
+      description: animeData.description,
+      episodes: animeData.episodes,
+      genres: animeData.genres,
+      averageScore: animeData.averageScore,
+      status: animeData.status,
+      coverImage: animeData.coverImage.large
+    });
+  } catch (error) {
+    console.error('خطأ أثناء جلب البيانات:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب البيانات' });
+  }
 });
 
 // التعامل مع الأخطاء 404
