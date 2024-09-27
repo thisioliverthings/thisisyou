@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
-const Jimp = require('jimp');
+const sharp = require('sharp'); // استخدام مكتبة sharp لمعالجة الصور
+const axios = require('axios'); // استخدام axios لتحميل الصورة
 
 // استبدل 'YOUR_BOT_API_KEY' بالتوكن الخاص بك
 const bot = new TelegramBot('7739626112:AAHVJXMdorsiiyTsp9wtclsbnks84m4g8eI', { polling: true });
@@ -41,10 +42,11 @@ bot.on('photo', async (msg) => {
 
     try {
         // تحميل الصورة من الرابط
-        const image = await Jimp.read(fileLink);
+        const response = await axios.get(fileLink, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data);
 
         // حفظ الصورة الأصلية في متغير
-        const originalBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+        const originalBuffer = await sharp(imageBuffer).toBuffer();
 
         // إنشاء رسالة مع أزرار
         const options = {
@@ -81,18 +83,17 @@ bot.on('callback_query', async (query) => {
         const fileLink = await bot.getFileLink(fileId); // الحصول على رابط الصورة
 
         try {
-            const image = await Jimp.read(fileLink);
-            image.resize(800, Jimp.AUTO) // تغيير الحجم إلى 800 بكسل عرضًا
-                 .quality(80) // زيادة الجودة
-                 .getBuffer(Jimp.MIME_JPEG, async (err, buffer) => {
-                     if (err) {
-                         console.error('Error while processing image:', err);
-                         return;
-                     }
-                     
-                     // إرسال الصورة المحسنة إلى المستخدم
-                     await bot.sendPhoto(chatId, buffer, { caption: 'إليك الصورة المحسنة!' });
-                 });
+            const response = await axios.get(fileLink, { responseType: 'arraybuffer' });
+            const imageBuffer = Buffer.from(response.data);
+            
+            // زيادة دقة الصورة
+            const enhancedImageBuffer = await sharp(imageBuffer)
+                .resize(800) // تغيير الحجم إلى 800 بكسل عرضًا
+                .jpeg({ quality: 80 }) // زيادة الجودة
+                .toBuffer();
+                
+            // إرسال الصورة المحسنة إلى المستخدم
+            await bot.sendPhoto(chatId, enhancedImageBuffer, { caption: 'إليك الصورة المحسنة!' });
         } catch (error) {
             console.error('حدث خطأ أثناء معالجة الصورة:', error);
             bot.sendMessage(chatId, 'حدث خطأ أثناء معالجة الصورة.');
