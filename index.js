@@ -11,10 +11,11 @@ class Messages {
         this.welcome = "مرحبًا بك في بوت الأنمي! يمكنك البحث عن أي أنمي هنا.";
         this.inputPrompt = "يرجى إدخال اسم الأنمي الذي ترغب في البحث عنه.";
         this.noResults = "لم يتم العثور على أي نتائج.";
-        this.errorFetching = "حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
+        this.errorFetching = "⚠️ حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
         this.unknownCommand = "لا أفهم هذه الرسالة. يرجى استخدام الأوامر المعروفة.";
         this.viewMore = "هل ترغب في عرض الوصف الكامل؟";
         this.watchLinks = "اختر منصة المشاهدة:";
+        this.returnToMain = "العودة إلى الصفحة الرئيسية";
     }
 }
 
@@ -23,9 +24,11 @@ class AnimeBot {
     constructor(token) {
         this.bot = new TelegramBot(token, { polling: true });
         this.messages = new Messages();
+        this.animeList = []; // لتخزين قائمة الأنمي
 
         // التعامل مع الرسائل
         this.bot.on('message', this.handleMessage.bind(this));
+        this.bot.on('callback_query', this.handleCallbackQuery.bind(this));
     }
 
     // دالة للبحث عن الأنمي باستخدام AniList API
@@ -45,6 +48,10 @@ class AnimeBot {
                         coverImage {
                             large
                         }
+                        sites {
+                            site
+                            url
+                        }
                     }
                 }
             }`,
@@ -55,7 +62,7 @@ class AnimeBot {
             const response = await axios.post(url, queryData);
             return response.data.data.Page.media; // استرجاع قائمة الأنمي
         } catch (error) {
-            console.error("Error fetching anime from AniList API", error);
+            console.error("Error fetching anime from AniList API", error.response ? error.response.data : error.message);
             throw new Error(this.messages.errorFetching);
         }
     }
@@ -79,7 +86,7 @@ class AnimeBot {
             ]
         };
 
-        this.bot.sendMessage(chatId, responseMessage, {
+        await this.bot.sendMessage(chatId, responseMessage, {
             parse_mode: 'HTML',
             reply_markup: replyMarkup
         });
@@ -109,24 +116,24 @@ class AnimeBot {
     }
 
     // دالة لعرض روابط المشاهدة
-    async sendWatchLinks(chatId) {
+    async sendWatchLinks(chatId, anime) {
         const watchLinks = `
         اختر منصة المشاهدة:
-        - [Netflix](https://www.netflix.com)
-        - [سينمانا](https://www.cinemana.com)
-        - [فودو](https://www.vudu.com)
-        - [انمي سلاير](https://www.anime-slayer.com)
-        - [انمي كلاود](https://www.animecloud.com)
+        - Netflix: ${anime.sites.find(site => site.site === 'Netflix')?.url || 'غير متوفر'}
+        - سينمانا: ${anime.sites.find(site => site.site === 'سينمانا')?.url || 'غير متوفر'}
+        - فودو: ${anime.sites.find(site => site.site === 'فودو')?.url || 'غير متوفر'}
+        - انمي سلاير: ${anime.sites.find(site => site.site === 'انمي سلاير')?.url || 'غير متوفر'}
+        - انمي كلاود: ${anime.sites.find(site => site.site === 'انمي كلاود')?.url || 'غير متوفر'}
         `;
 
         const replyMarkup = {
             inline_keyboard: [
-                [{ text: "عودة", callback_data: 'return_to_anime' }]
+                [{ text: this.messages.returnToMain, callback_data: 'return_home' }]
             ]
         };
 
-        this.bot.sendMessage(chatId, watchLinks, {
-            parse_mode: 'Markdown',
+        await this.bot.sendMessage(chatId, watchLinks, {
+            parse_mode: 'HTML',
             reply_markup: replyMarkup
         });
     }
@@ -144,14 +151,16 @@ class AnimeBot {
                 message_id: callbackQuery.message.message_id,
                 reply_markup: {
                     inline_keyboard: [[
-                        { text: "عودة", callback_data: 'return_to_anime' }
+                        { text: this.messages.returnToMain, callback_data: 'return_home' }
                     ]]
                 }
             });
         } else if (data.startsWith('watch_links:')) {
-            await this.sendWatchLinks(chatId);
-        } else if (data === 'return_to_anime') {
-            await this.sendAnimeResponse(chatId, this.animeList); // قم بتخزين animeList في حالة عدم توفره
+            const animeId = data.split(':')[1];
+            const anime = this.animeList.find(a => a.id == animeId);
+            await this.sendWatchLinks(chatId, anime);
+        } else if (data === 'return_home') {
+            await this.sendAnimeResponse(chatId, this.animeList);
         }
     }
 
@@ -166,7 +175,7 @@ class AnimeBot {
 
         // التعامل مع التحيات والأوامر
         if (['مرحبا', 'مساعدة', '/start', '/help'].includes(text)) {
-            this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
+            await this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
         } else if (text.startsWith('بحث')) {
             const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي من الرسالة
             if (!query) {
@@ -195,6 +204,3 @@ const animeBot = new AnimeBot(token);
 animeBot.bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
 });
-
-// التعامل مع ردود الأزرار
-animeBot.bot.on('callback_query', animeBot.handleCallbackQuery.bind(animeBot));
