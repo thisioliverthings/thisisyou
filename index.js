@@ -64,6 +64,7 @@ class AnimeBot {
         }
     }
 
+    
     // دالة لإرسال رد الأنمي
     async sendAnimeResponse(chatId, anime) {
         if (!anime || !anime.length) {
@@ -71,35 +72,57 @@ class AnimeBot {
             return;
         }
 
-        // حفظ بيانات الصفحة الرئيسية
-        this.mainAnimePage = anime;
+        // حفظ بيانات الصفحة الرئيسية لأول نتيجة فقط
+        const animeItem = anime[0];
+        this.mainAnimePage = [animeItem]; // حفظ الأنمي الأول فقط
 
-        anime.forEach(animeItem => {
-            const titleRomaji = animeItem.title.romaji;
-            const titleNative = animeItem.title.native || 'لا يوجد عنوان باللغة الأصلية';
-            const description = animeItem.description || 'لا يوجد وصف متاح';
+        const titleRomaji = animeItem.title.romaji;
+        const titleNative = animeItem.title.native || 'لا يوجد عنوان باللغة الأصلية';
+        const description = animeItem.description || 'لا يوجد وصف متاح';
 
-            const responseMessage = `
-                🌟 <b>عنوان الأنمي:</b> <a href="${animeItem.coverImage.large}">${titleRomaji}</a> 
-                <b>العنوان الأصلي:</b> ${titleNative} 
-                📖 <b>الوصف:</b> ${description.replace(/<\/?[^>]+(>|$)/g, "").replace(/\n/g, " ")}
-            `;
+        const responseMessage = `
+            🌟 <b>عنوان الأنمي:</b> <a href="${animeItem.coverImage.large}">${titleRomaji}</a> 
+            <b>العنوان الأصلي:</b> ${titleNative} 
+            📖 <b>الوصف:</b> ${description.replace(/<\/?[^>]+(>|$)/g, "").replace(/\n/g, " ")}
+        `;
 
-            const replyMarkup = {
-                inline_keyboard: [
-                    [{ text: "عرض الوصف الكامل", callback_data: `full_description:${animeItem.id}` }],
-                    [{ text: "روابط المشاهدة", callback_data: `watch_links:${animeItem.id}` }],
-                    [{ text: "عودة", callback_data: 'return_to_main_page' }] // زر العودة
-                ]
-            };
+        const replyMarkup = {
+            inline_keyboard: [
+                [{ text: "عرض الوصف الكامل", callback_data: `full_description:${animeItem.id}` }],
+                [{ text: "روابط المشاهدة", callback_data: `watch_links:${animeItem.id}` }],
+                [{ text: "عودة", callback_data: 'return_to_main_page' }] // زر العودة
+            ]
+        };
 
-            this.bot.sendMessage(chatId, responseMessage, {
-                parse_mode: 'HTML',
-                reply_markup: replyMarkup
-            });
+        this.bot.sendMessage(chatId, responseMessage, {
+            parse_mode: 'HTML',
+            reply_markup: replyMarkup
         });
     }
 
+    // دالة لجلب الوصف الكامل
+    async getFullDescription(chatId, animeId) {
+        const url = 'https://graphql.anilist.co';
+        const queryData = {
+            query: `
+            query ($id: Int) {
+                Media(id: $id) {
+                    description
+                }
+            }`,
+            variables: { id: animeId }
+        };
+
+        try {
+            const response = await axios.post(url, queryData);
+            const fullDescription = response.data.data.Media.description.replace(/<\/?[^>]+(>|$)/g, ""); // إزالة العلامات
+            return fullDescription;
+        } catch (error) {
+            console.error("Error fetching full description from AniList API", error);
+            throw new Error(this.messages.errorFetching);
+        }
+    }
+}
     // دالة لجلب الوصف الكامل
     async getFullDescription(chatId, animeId) {
         const url = 'https://graphql.anilist.co';
