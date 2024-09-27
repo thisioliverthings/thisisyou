@@ -78,10 +78,9 @@ class AnimeBot {
             const coverImage = animeItem.coverImage.large || 'لا يوجد صورة متاحة';
 
             const responseMessage = `
-                🌟 <b>عنوان الأنمي:</b> 🌟 ${titleRomaji} 
-                <b>العنوان الأصلي:</b> ${titleNative} 
+                🌟 <b>عنوان الأنمي:</b> <a href="${coverImage}">${titleRomaji}</a>
+                <b>العنوان الأصلي:</b> ${titleNative}
                 📖 <b>الوصف:</b> ${description.replace(/<\/?[^>]+(>|$)/g, "").replace(/\n/g, " ")}
-                <a href="${coverImage}">صورة الأنمي</a>
             `;
 
             const replyMarkup = {
