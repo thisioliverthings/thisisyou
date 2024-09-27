@@ -3,7 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
 // استبدل YOUR_BOT_TOKEN برمز التوكن الخاص بك
-const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
+const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0'; // استبدل هذا برمز التوكن الخاص بك
 
 // فئة الرسائل
 class Messages {
@@ -59,17 +59,22 @@ class AnimeBot {
         }
     }
 
-    // تابع لتحميل الأخبار من AniList API
-    async fetchAnimeNews(animeId) {
+    // تابع لتحميل بيانات الحلقات
+    async fetchAnimeEpisodes(animeId) {
         const url = `https://graphql.anilist.co`;
         const queryData = {
             query: `
             query ($id: Int) {
               Media(id: $id) {
+                episodes
                 title {
                   native
                 }
-                siteUrl
+                episodes {
+                  id
+                  title
+                  siteUrl
+                }
               }
             }`,
             variables: { id: animeId }
@@ -77,9 +82,9 @@ class AnimeBot {
 
         try {
             const response = await axios.post(url, queryData);
-            return response.data.data.Media;
+            return response.data.data.Media; // استرجاع تفاصيل الأنمي مع الحلقات
         } catch (error) {
-            console.error("Error fetching anime news from AniList API", error);
+            console.error("Error fetching anime episodes from AniList API", error);
             throw new Error(this.messages.errorFetching);
         }
     }
@@ -94,17 +99,12 @@ class AnimeBot {
 ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 500) + '...' : 'لا يوجد وصف متاح.'}
 `;
 
-        const newsButton = { text: 'آخر الأخبار', callback_data: `fetch_news_${anime.id}` };
         const episodesButton = { text: 'الحلقات', callback_data: `fetch_episodes_${anime.id}` };
-        const fullDescriptionButton = { text: 'الوصف كامل', callback_data: `full_description_${anime.id}` };
-
-        await this.bot.sendMessage(chatId, responseMessage, {
+        this.bot.sendMessage(chatId, responseMessage, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
-                    [fullDescriptionButton],
-                    [episodesButton],
-                    [newsButton]
+                    [episodesButton]
                 ]
             }
         });
@@ -121,24 +121,24 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
 
         // التعامل مع التحيات والأوامر
         if (['مرحبا', 'مساعدة', '/start', '/help'].includes(text)) {
-            await this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
+            this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
         } else if (text.startsWith('بحث')) {
             const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي من الرسالة
             if (!query) {
-                return await this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
+                return this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
             }
 
             try {
                 const animeList = await this.searchAnime(query); // البحث عن الأنمي باستخدام الدالة
                 if (!animeList.length) {
-                    return await this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
+                    return this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
                 }
                 await this.sendAnimeResponse(chatId, animeList); // إرسال رد الأنمي مع الأزرار
             } catch (error) {
-                await this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
+                this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
             }
         } else {
-            await this.bot.sendMessage(chatId, this.messages.unknownCommand, { parse_mode: 'HTML' });
+            this.bot.sendMessage(chatId, this.messages.unknownCommand, { parse_mode: 'HTML' });
         }
     }
 
@@ -147,21 +147,25 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
         const chatId = query.message.chat.id;
         const data = query.data;
 
-        if (data.startsWith('fetch_news_')) {
+        if (data.startsWith('fetch_episodes_')) {
             const animeId = data.split('_')[2];
             try {
-                const news = await this.fetchAnimeNews(animeId);
-                const newsMessage = `📰 أخبار الأنمي:\n${news.title.native} - ${news.siteUrl}`;
-                await this.bot.sendMessage(chatId, newsMessage, { parse_mode: 'HTML' });
+                const animeData = await this.fetchAnimeEpisodes(animeId);
+                const episodes = animeData.episodes;
+
+                if (!episodes.length) {
+                    return this.bot.sendMessage(chatId, "لا توجد حلقات متاحة.", { parse_mode: 'HTML' });
+                }
+
+                let episodesMessage = `📺 حلقات الأنمي ${animeData.title.native}:\n`;
+                episodes.forEach(episode => {
+                    episodesMessage += `[${episode.title}](${episode.siteUrl})\n`;
+                });
+
+                this.bot.sendMessage(chatId, episodesMessage, { parse_mode: 'Markdown' });
             } catch (error) {
-                await this.bot.sendMessage(chatId, "⚠️ حدث خطأ أثناء جلب الأخبار.", { parse_mode: 'HTML' });
+                this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
             }
-        } else if (data.startsWith('fetch_episodes_')) {
-            const animeId = data.split('_')[2];
-            await this.bot.sendMessage(chatId, `📺 الحلقات الخاصة بـ ${animeId}`);
-        } else if (data.startsWith('full_description_')) {
-            const animeId = data.split('_')[2];
-            await this.bot.sendMessage(chatId, `📝 الوصف الكامل للأنمي ${animeId}`);
         }
     }
 }
