@@ -13,13 +13,14 @@ const messages = {
 🔍 ابحث عن أنمي بسهولة باستخدام الأزرار أدناه أو الأوامر التالية:
 - <code>بحث [اسم الأنمي]</code>
 🔧 أوامر أخرى:
-- /help لعرض هذه الرسالة
-- /settings لتخصيص تجربتك
+- <code>/help</code> لعرض هذه الرسالة
+- <code>/settings</code> لتخصيص تجربتك
         `,
         noResults: "❗ لم نتمكن من العثور على الأنمي المطلوب، حاول لاحقًا.",
         inputPrompt: "❗ يرجى إدخال اسم الأنمي بعد الأمر.",
         unknownCommand: "❓ الأمر غير معروف. هل تحتاج إلى مساعدة؟",
         settingsPrompt: "يمكنك تخصيص إعدادات البوت هنا:",
+        errorFetching: "⚠️ حدث خطأ أثناء جلب المعلومات، يرجى التحقق من الاتصال.",
     },
     english: {
         welcome: `
@@ -27,13 +28,14 @@ const messages = {
 🔍 Easily search for an anime using the buttons below or the following commands:
 - <code>search [anime name]</code>
 🔧 Other commands:
-- /help to show this message
-- /settings to customize your experience
+- <code>/help</code> to show this message
+- <code>/settings</code> to customize your experience
         `,
         noResults: "❗ We couldn't find the requested anime, please try again later.",
         inputPrompt: "❗ Please enter the anime name after the command.",
         unknownCommand: "❓ Unknown command. Do you need help?",
         settingsPrompt: "You can customize the bot settings here:",
+        errorFetching: "⚠️ An error occurred while fetching data, please check your connection.",
     }
 };
 
@@ -66,10 +68,13 @@ async function searchAnime(query) {
 
     try {
         const response = await axios.post(url, queryData);
+        if (!response.data.data.Media) {
+            throw new Error("لا يوجد أنمي مطابق");
+        }
         return response.data.data.Media;
     } catch (error) {
         console.error("Error fetching data from AniList API", error);
-        throw new Error("حدث خطأ أثناء جلب المعلومات.");
+        throw new Error(error.message || "حدث خطأ أثناء جلب المعلومات.");
     }
 }
 
@@ -106,7 +111,7 @@ bot.on('message', async (msg) => {
             const responseMessage = formatAnimeResponse(anime, language);
             bot.sendMessage(chatId, responseMessage, { parse_mode: 'HTML' });
         } catch (error) {
-            bot.sendMessage(chatId, messages[language].noResults, { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, messages[language].errorFetching, { parse_mode: 'HTML' });
         }
 
     } else if (text === '/settings') {
