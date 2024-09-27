@@ -65,26 +65,59 @@ class AnimeBot {
         const queryData = {
             query: `
             query ($id: Int) {
-              Media(id: $id) {
-                title {
-                  native
+                Media(id: $id) {
+                    title {
+                        native
+                        romaji
+                    }
+                    episodes
+                    streamingEpisodes {
+                        title
+                        url
+                    }
+                    duration
+                    nextAiringEpisode {
+                        airingAt
+                        episode
+                    }
                 }
-                episodes {
-                  id
-                  title
-                  siteUrl
-                }
-              }
             }`,
             variables: { id: animeId }
         };
 
         try {
             const response = await axios.post(url, queryData);
-            return response.data.data.Media; // استرجاع تفاصيل الأنمي مع الحلقات
+            const mediaData = response.data.data.Media;
+
+            // التحقق من وجود الحلقات
+            if (!mediaData.streamingEpisodes || mediaData.streamingEpisodes.length === 0) {
+                throw new Error('No episodes found');
+            }
+
+            // إضافة تفاصيل حول الحلقات القادمة
+            if (mediaData.nextAiringEpisode) {
+                mediaData.nextAiringEpisode.airingAt = new Date(mediaData.nextAiringEpisode.airingAt * 1000).toLocaleString();
+            }
+
+            // استرجاع تفاصيل الأنمي مع الحلقات المتاحة
+            return {
+                titleNative: mediaData.title.native || mediaData.title.romaji,
+                episodes: mediaData.streamingEpisodes,
+                totalEpisodes: mediaData.episodes || 'Unknown',
+                episodeDuration: mediaData.duration || 'Unknown',
+                nextAiringEpisode: mediaData.nextAiringEpisode || null
+            };
         } catch (error) {
             console.error("Error fetching anime episodes from AniList API", error);
-            throw new Error(this.messages.errorFetching);
+
+            // معالجة الأخطاء بشكل مفصل بناءً على نوع الخطأ
+            if (error.response) {
+                throw new Error(`API Error: ${error.response.status} - ${error.response.data.errors[0].message}`);
+            } else if (error.request) {
+                throw new Error("Network error: Unable to reach AniList API.");
+            } else {
+                throw new Error(this.messages.errorFetching);
+            }
         }
     }
 
@@ -113,26 +146,24 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
     async handleMessage(msg) {
         const chatId = msg.chat.id;
 
-        // التحقق مما إذا كانت الرسالة تحتوي على خاصية النص
         if (!msg.text) return;
 
         const text = msg.text.toLowerCase().trim(); // تحويل النص إلى أحرف صغيرة وإزالة المسافات
 
-        // التعامل مع التحيات والأوامر
         if (['مرحبا', 'مساعدة', '/start', '/help'].includes(text)) {
-            this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
+            this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' });
         } else if (text.startsWith('بحث')) {
-            const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي من الرسالة
+            const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي
             if (!query) {
                 return this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
             }
 
             try {
-                const animeList = await this.searchAnime(query); // البحث عن الأنمي باستخدام الدالة
+                const animeList = await this.searchAnime(query); // البحث عن الأنمي
                 if (!animeList.length) {
                     return this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
                 }
-                await this.sendAnimeResponse(chatId, animeList); // إرسال رد الأنمي مع الأزرار
+                await this.sendAnimeResponse(chatId, animeList);
             } catch (error) {
                 this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
             }
@@ -158,7 +189,7 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
 
                 let episodesMessage = `📺 حلقات الأنمي ${animeData.title.native}:\n`;
                 episodes.forEach(episode => {
-                    episodesMessage += `[${episode.title}](${episode.siteUrl})\n`; // استخدام روابط تيليجرام
+                    episodesMessage += `[${episode.title}](${episode.url})\n`;
                 });
 
                 this.bot.sendMessage(chatId, episodesMessage, { parse_mode: 'Markdown' });
