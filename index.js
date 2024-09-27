@@ -2,9 +2,10 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
 // توكن البوت
-const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
-
+const token = 'YOUR_TOKEN_HERE'; // استبدل '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0' بالتوكن الصحيح
 const bot = new TelegramBot(token, { polling: true });
+
+console.log('Bot is running...');
 
 // الرسائل متعددة اللغات
 const messages = {
@@ -21,7 +22,6 @@ const messages = {
         inputPrompt: "❗ يرجى إدخال اسم الأنمي بعد الأمر.",
         unknownCommand: "❓ الأمر غير معروف. هل تحتاج إلى مساعدة؟",
         settingsPrompt: "يمكنك تخصيص إعدادات البوت هنا:",
-        errorFetching: "⚠️ حدث خطأ أثناء جلب المعلومات، يرجى التحقق من الاتصال.",
     },
     english: {
         welcome: `
@@ -36,7 +36,6 @@ const messages = {
         inputPrompt: "❗ Please enter the anime name after the command.",
         unknownCommand: "❓ Unknown command. Do you need help?",
         settingsPrompt: "You can customize the bot settings here:",
-        errorFetching: "⚠️ An error occurred while fetching data, please check your connection.",
     }
 };
 
@@ -69,13 +68,10 @@ async function searchAnime(query) {
 
     try {
         const response = await axios.post(url, queryData);
-        if (!response.data.data.Media) {
-            throw new Error("لا يوجد أنمي مطابق");
-        }
         return response.data.data.Media;
     } catch (error) {
         console.error("Error fetching data from AniList API", error);
-        throw new Error(error.message || "حدث خطأ أثناء جلب المعلومات.");
+        throw new Error("حدث خطأ أثناء جلب المعلومات.");
     }
 }
 
@@ -112,7 +108,7 @@ bot.on('message', async (msg) => {
             const responseMessage = formatAnimeResponse(anime, language);
             bot.sendMessage(chatId, responseMessage, { parse_mode: 'HTML' });
         } catch (error) {
-            bot.sendMessage(chatId, messages[language].errorFetching, { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, messages[language].noResults, { parse_mode: 'HTML' });
         }
 
     } else if (text === '/settings') {
@@ -159,5 +155,4 @@ bot.on('callback_query', (query) => {
 // معالجة الأخطاء العامة
 bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
-    bot.sendMessage(chatId, "⚠️ حدث خطأ تقني. يرجى المحاولة لاحقاً.", { parse_mode: 'HTML' });
 });
