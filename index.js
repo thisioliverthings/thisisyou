@@ -98,7 +98,7 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
         const episodesButton = { text: 'الحلقات', callback_data: `fetch_episodes_${anime.id}` };
         const fullDescriptionButton = { text: 'الوصف كامل', callback_data: `full_description_${anime.id}` };
 
-        this.bot.sendMessage(chatId, responseMessage, {
+        await this.bot.sendMessage(chatId, responseMessage, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
@@ -121,24 +121,24 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
 
         // التعامل مع التحيات والأوامر
         if (['مرحبا', 'مساعدة', '/start', '/help'].includes(text)) {
-            this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
+            await this.bot.sendMessage(chatId, this.messages.welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
         } else if (text.startsWith('بحث')) {
             const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي من الرسالة
             if (!query) {
-                return this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
+                return await this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
             }
 
             try {
                 const animeList = await this.searchAnime(query); // البحث عن الأنمي باستخدام الدالة
                 if (!animeList.length) {
-                    return this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
+                    return await this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
                 }
                 await this.sendAnimeResponse(chatId, animeList); // إرسال رد الأنمي مع الأزرار
             } catch (error) {
-                this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
+                await this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
             }
         } else {
-            this.bot.sendMessage(chatId, this.messages.unknownCommand, { parse_mode: 'HTML' });
+            await this.bot.sendMessage(chatId, this.messages.unknownCommand, { parse_mode: 'HTML' });
         }
     }
 
@@ -152,16 +152,16 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
             try {
                 const news = await this.fetchAnimeNews(animeId);
                 const newsMessage = `📰 أخبار الأنمي:\n${news.title.native} - ${news.siteUrl}`;
-                this.bot.sendMessage(chatId, newsMessage, { parse_mode: 'HTML' });
+                await this.bot.sendMessage(chatId, newsMessage, { parse_mode: 'HTML' });
             } catch (error) {
-                this.bot.sendMessage(chatId, "⚠️ حدث خطأ أثناء جلب الأخبار.", { parse_mode: 'HTML' });
+                await this.bot.sendMessage(chatId, "⚠️ حدث خطأ أثناء جلب الأخبار.", { parse_mode: 'HTML' });
             }
         } else if (data.startsWith('fetch_episodes_')) {
             const animeId = data.split('_')[2];
-            this.bot.sendMessage(chatId, `📺 الحلقات الخاصة بـ ${animeId}`);
+            await this.bot.sendMessage(chatId, `📺 الحلقات الخاصة بـ ${animeId}`);
         } else if (data.startsWith('full_description_')) {
             const animeId = data.split('_')[2];
-            this.bot.sendMessage(chatId, `📝 الوصف الكامل للأنمي ${animeId}`);
+            await this.bot.sendMessage(chatId, `📝 الوصف الكامل للأنمي ${animeId}`);
         }
     }
 }
