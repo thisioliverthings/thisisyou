@@ -3,7 +3,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
 // Replace '7739626112:AAHVJXMdorsiiyTsp9wtclsbnks84m4g8eI' with your bot's API token
-const bot = new TelegramBot('YOUR_BOT_API_KEY', { polling: true });
+const bot = new TelegramBot('7739626112:AAHVJXMdorsiiyTsp9wtclsbnks84m4g8eI', { polling: true });
 
 // Start command handler
 bot.onText(/\/start/, (msg) => {
