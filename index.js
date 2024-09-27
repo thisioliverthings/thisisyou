@@ -23,6 +23,7 @@ class AnimeBot {
     constructor(token) {
         this.bot = new TelegramBot(token, { polling: true });
         this.messages = new Messages();
+        this.animeList = []; // تخزين قائمة الأنمي
 
         // التعامل مع الرسائل
         this.bot.on('message', this.handleMessage.bind(this));
@@ -151,7 +152,7 @@ class AnimeBot {
         } else if (data.startsWith('watch_links:')) {
             await this.sendWatchLinks(chatId);
         } else if (data === 'return_to_anime') {
-            await this.sendAnimeResponse(chatId, this.animeList); // قم بتخزين animeList في حالة عدم توفره
+            await this.sendAnimeResponse(chatId, this.animeList); // استخدم قائمة الأنمي المخزنة
         }
     }
 
