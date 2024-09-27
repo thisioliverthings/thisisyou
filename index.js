@@ -3,6 +3,7 @@ const axios = require('axios');
 
 // توكن البوت
 const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
+
 const bot = new TelegramBot(token, { polling: true });
 
 // الرسائل متعددة اللغات
