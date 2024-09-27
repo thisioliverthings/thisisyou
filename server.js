@@ -72,8 +72,11 @@ bot.on('callback_query', async (query) => {
     const data = query.data;
 
     if (data === 'increase_quality') {
-        // معالجة زيادة دقة الصورة
-        const photo = query.message.photo[query.message.photo.length - 1]; // الحصول على أكبر صورة
+        const photo = query.message.photo ? query.message.photo[query.message.photo.length - 1] : null; // التحقق من وجود خاصية photo
+        if (!photo) {
+            return bot.sendMessage(chatId, 'لم يتم العثور على صورة. يرجى إرسال صورة أولاً.');
+        }
+
         const fileId = photo.file_id; // معرف الصورة
         const fileLink = await bot.getFileLink(fileId); // الحصول على رابط الصورة
 
