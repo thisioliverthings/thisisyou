@@ -11,7 +11,7 @@ class Messages {
         this.welcome = "مرحبًا بك في بوت الأنمي! يمكنك البحث عن أي أنمي هنا.";
         this.inputPrompt = "يرجى إدخال اسم الأنمي الذي ترغب في البحث عنه.";
         this.noResults = "لم يتم العثور على أي نتائج.";
-        this.errorFetching = "حدث خطأ أثناء جلب المعلومات.";
+        this.errorFetching = "حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
         this.unknownCommand = "لا أفهم هذه الرسالة. يرجى استخدام الأوامر المعروفة.";
     }
 }
@@ -66,7 +66,6 @@ class AnimeBot {
             query: `
             query ($id: Int) {
               Media(id: $id) {
-                episodes
                 title {
                   native
                 }
