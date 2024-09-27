@@ -1,11 +1,10 @@
-// استيراد المكتبات المطلوبة
+// مكاتب
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// استبدل YOUR_BOT_TOKEN برمز التوكن الخاص بك
-const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
 
-// فئة الرسائل
+const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
+// كلاس الرسايل
 class Messages {
     constructor() {
         this.welcome = "مرحبًا بك في بوت الأنمي! يمكنك البحث عن أي أنمي هنا.";
@@ -14,6 +13,9 @@ class Messages {
         this.errorFetching = "حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
         this.unknownCommand = "لا أفهم هذه الرسالة. يرجى استخدام الأوامر المعروفة.";
         this.animeOptions = "اختر خيارًا:";
+        this.settingsPrompt = "اختر إعداداتك:";
+        this.languageSetting = "اختر لغة نتائج البحث: 1. عربية 2. إنجليزية";
+        this.contentManagement = "اختر إدارة المحتوى: 1. السماح بالمحتوى الغير آمن 2. حظر المحتوى الغير آمن";
     }
 }
 
@@ -92,7 +94,8 @@ class AnimeBot {
             ]
         };
 
-        this.bot.sendMessage(chatId, responseMessage, {
+        // تحسين كيفية إرسال الرسالة
+        await this.bot.sendMessage(chatId, responseMessage, {
             parse_mode: 'HTML',
             reply_markup: replyMarkup
         });
@@ -140,7 +143,7 @@ class AnimeBot {
             ]
         };
 
-        this.bot.sendMessage(chatId, watchLinks, {
+        await this.bot.sendMessage(chatId, watchLinks, {
             parse_mode: 'Markdown',
             reply_markup: replyMarkup
         });
@@ -151,30 +154,35 @@ class AnimeBot {
         const chatId = callbackQuery.message.chat.id;
         const data = callbackQuery.data;
 
-        if (data.startsWith('full_description:')) {
-            const animeId = data.split(':')[1];
-            const fullDescription = await this.getFullDescription(chatId, animeId);
-            this.bot.editMessageText(`
+        try {
+            if (data.startsWith('full_description:')) {
+                const animeId = data.split(':')[1];
+                const fullDescription = await this.getFullDescription(chatId, animeId);
+                await this.bot.editMessageText(`
 <b>الوصف الكامل:</b>
 ${fullDescription}
 `, {
-                chat_id: chatId,
-                message_id: callbackQuery.message.message_id,
-                parse_mode: 'HTML',
-                reply_markup: {
-                    inline_keyboard: [[
-                        { text: "عودة للنتائج", callback_data: 'return_to_results' }
-                    ]]
-                }
-            });
-        } else if (data.startsWith('watch_links:')) {
-            await this.sendWatchLinks(chatId);
-        } else if (data === 'search_anime') {
-            this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
-        } else if (data === 'return_to_results') {
-            // عُد إلى نتيجة البحث
-            const animeList = this.animeData[chatId] || [];
-            await this.sendAnimeResponse(chatId, animeList);
+                    chat_id: chatId,
+                    message_id: callbackQuery.message.message_id,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [[
+                            { text: "عودة للنتائج", callback_data: 'return_to_results' }
+                        ]]
+                    }
+                });
+            } else if (data.startsWith('watch_links:')) {
+                await this.sendWatchLinks(chatId);
+            } else if (data === 'search_anime') {
+                this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
+            } else if (data === 'return_to_results') {
+                // عُد إلى نتيجة البحث
+                const animeList = this.animeData[chatId] || [];
+                await this.sendAnimeResponse(chatId, animeList);
+            }
+        } catch (error) {
+            console.error("Error handling callback query:", error.message || error);
+            this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
         }
     }
 
