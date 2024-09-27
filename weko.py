@@ -1,5 +1,5 @@
 import os
-from telegram import Update
+from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from fpdf import FPDF
 
@@ -19,7 +19,8 @@ def text_to_pdf(text, pdf_filename):
 
 # دالة الاستجابة عند بدء البوت
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("مرحبًا! أرسل لي نصًا أو ملف .txt لأحوله إلى PDF.")
+    welcome_message = "- 𝘼𝙗𝙨𝙤𝙡𝙪𝙩𝙚 𝙄𝙈𝙂𝙍:\nمرحبًا! أرسل لي نصًا أو ملف .txt لأحوله إلى PDF."
+    update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN)
 
 # دالة لاستقبال الرسائل النصية
 def handle_message(update: Update, context: CallbackContext):
@@ -32,7 +33,7 @@ def handle_message(update: Update, context: CallbackContext):
     
     # إرسال ملف PDF
     with open(pdf_filename, 'rb') as pdf_file:
-        update.message.reply_document(pdf_file)
+        update.message.reply_document(pdf_file, caption="تم تحويل النص إلى PDF بنجاح!")
     
     # حذف الملف بعد إرساله
     os.remove(pdf_filename)
@@ -56,7 +57,7 @@ def handle_document(update: Update, context: CallbackContext):
         
         # إرسال ملف PDF
         with open(pdf_filename, 'rb') as pdf_file:
-            update.message.reply_document(pdf_file)
+            update.message.reply_document(pdf_file, caption="تم تحويل ملف .txt إلى PDF بنجاح!")
         
         # حذف الملفات بعد الإرسال
         os.remove(pdf_filename)
