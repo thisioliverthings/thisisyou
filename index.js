@@ -74,7 +74,7 @@ async function searchAnime(query) {
         }
         return response.data.data.Media;
     } catch (error) {
-        console.error("Error fetching data from AniList API:", error.message);
+        console.error("Error fetching data from AniList API", error);
         throw new Error(error.message || "حدث خطأ أثناء جلب المعلومات.");
     }
 }
@@ -92,26 +92,34 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
 // تحسين الرد على الرسائل
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    const text = msg.text.toLowerCase().trim();
-    const language = getLanguage(text);
 
-    // الاعتراف بالتحيات
+    // التحقق مما إذا كانت الرسالة تحتوي على خاصية النص
+    if (!msg.text) {
+        return; // الخروج إذا لم تكن هناك خاصية نص (مثل الرسائل غير النصية)
+    }
+
+    const text = msg.text.toLowerCase().trim(); // تحويل النص إلى أحرف صغيرة وإزالة المسافات
+    const language = getLanguage(text); // تحديد لغة الرسالة
+
+    // التعامل مع التحيات والأوامر
     if (['مرحبا', 'مساعدة', '/start', '/help'].includes(text)) {
-        bot.sendMessage(chatId, messages[language].welcome, { parse_mode: 'HTML' });
+        bot.sendMessage(chatId, messages[language].welcome, { parse_mode: 'HTML' }); // إرسال رسالة الترحيب
     } else if (text.startsWith('بحث') || text.startsWith('search')) {
-        const query = text.split(' ').slice(1).join(' ');
+        const query = text.split(' ').slice(1).join(' '); // استخراج اسم الأنمي من الرسالة
         if (!query) {
-            return bot.sendMessage(chatId, messages[language].inputPrompt, { parse_mode: 'HTML' });
+            return bot.sendMessage(chatId, messages[language].inputPrompt, { parse_mode: 'HTML' }); // تذكير المستخدم بإدخال اسم الأنمي
         }
 
         try {
-            const anime = await searchAnime(query);
-            const responseMessage = formatAnimeResponse(anime, language);
-            bot.sendMessage(chatId, responseMessage, { parse_mode: 'HTML' });
+            const anime = await searchAnime(query); // البحث عن الأنمي باستخدام الدالة
+            if (!anime) {
+                return bot.sendMessage(chatId, messages[language].noResults, { parse_mode: 'HTML' }); // إبلاغ المستخدم بعدم العثور على النتائج
+            }
+            const responseMessage = formatAnimeResponse(anime, language); // تنسيق رد الأنمي
+            bot.sendMessage(chatId, responseMessage, { parse_mode: 'HTML' }); // إرسال رد الأنمي
         } catch (error) {
-            bot.sendMessage(chatId, messages[language].errorFetching, { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, messages[language].errorFetching, { parse_mode: 'HTML' }); // إبلاغ المستخدم بحدوث خطأ
         }
-
     } else if (text === '/settings') {
         // إعدادات المستخدم
         bot.sendMessage(chatId, messages[language].settingsPrompt, {
@@ -140,29 +148,21 @@ bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    switch (data) {
-        case 'search':
-            bot.sendMessage(chatId, "❗ أدخل اسم الأنمي الذي ترغب في البحث عنه:");
-            break;
-        case 'settings':
-            bot.sendMessage(chatId, "⚙️ إعدادات البوت:");
-            break;
-        case 'help':
-            bot.sendMessage(chatId, messages['arabic'].welcome, { parse_mode: 'HTML' });
-            break;
-        case 'change_language':
-            bot.sendMessage(chatId, "🌐 يمكنك تغيير اللغة من هنا:");
-            break;
-        case 'notifications':
-            bot.sendMessage(chatId, "🔔 إعدادات الإشعارات:");
-            break;
-        default:
-            bot.sendMessage(chatId, "❓ لا توجد خيارات متاحة.");
+    if (data === 'search') {
+        bot.sendMessage(chatId, "❗ أدخل اسم الأنمي الذي ترغب في البحث عنه:");
+    } else if (data === 'settings') {
+        bot.sendMessage(chatId, "⚙️ إعدادات البوت:");
+    } else if (data === 'help') {
+        bot.sendMessage(chatId, messages['arabic'].welcome, { parse_mode: 'HTML' });
+    } else if (data === 'change_language') {
+        bot.sendMessage(chatId, "🌐 يمكنك تغيير اللغة من هنا:");
+    } else if (data === 'notifications') {
+        bot.sendMessage(chatId, "🔔 إعدادات الإشعارات:");
     }
 });
 
 // معالجة الأخطاء العامة
 bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
-    // يمكن إضافة رسائل محددة إذا كانت هناك حاجة لذلك
+    bot.sendMessage(chatId, "⚠️ حدث خطأ تقني. يرجى المحاولة لاحقاً.", { parse_mode: 'HTML' });
 });
