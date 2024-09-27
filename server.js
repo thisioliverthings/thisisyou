@@ -1,34 +1,34 @@
-const { Telegraf } = require('telegraf');
+const TelegramBot = require('node-telegram-bot-api');
 
-// استبدل '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0' بالتوكن الخاص بك
-const bot = new Telegraf('YOUR_BOT_API_KEY');
+// استبدل 'YOUR_BOT_API_KEY' بالتوكن الخاص بك
+const bot = new TelegramBot('7739626112:AAHVJXMdorsiiyTsp9wtclsbnks84m4g8eI', { polling: true });
 
 // معالج الأمر /start
-bot.start((ctx) => {
-    ctx.reply('أهلا بك في البوت! كيف يمكنني مساعدتك؟');
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    bot.sendMessage(chatId, 'أهلا بك في البوت! كيف يمكنني مساعدتك؟');
 });
 
 // معالج الرسائل النصية
-bot.on('text', (ctx) => {
-    console.log('Received a message:', ctx.message.text); // طباعة الرسالة المستلمة في السجل
-    ctx.reply('شكرا على رسالتك!'); // رد على المستخدم
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+
+    if (msg.text && msg.text !== '/start') {
+        console.log('Received a message:', msg.text); // طباعة الرسالة المستلمة في السجل
+        bot.sendMessage(chatId, 'شكرا على رسالتك!'); // رد على المستخدم
+    }
 });
 
 // معالج الصور
-bot.on('photo', async (ctx) => {
-    const photo = ctx.message.photo[ctx.message.photo.length - 1]; // الحصول على أكبر صورة
+bot.on('photo', async (msg) => {
+    const chatId = msg.chat.id;
+    const photo = msg.photo[msg.photo.length - 1]; // الحصول على أكبر صورة
     const fileId = photo.file_id; // معرف الصورة
-    const fileLink = await ctx.telegram.getFileLink(fileId); // الحصول على رابط الصورة
+    const fileLink = await bot.getFileLink(fileId); // الحصول على رابط الصورة
 
     console.log('Received photo link:', fileLink); // طباعة رابط الصورة
-    ctx.reply('لقد تلقيت صورة!'); // رد على المستخدم
+    bot.sendMessage(chatId, 'لقد تلقيت صورة!'); // رد على المستخدم
 });
 
 // تشغيل البوت
-bot.launch()
-    .then(() => {
-        console.log('بوت Telegram يعمل...');
-    })
-    .catch((err) => {
-        console.error('حدث خطأ أثناء تشغيل البوت:', err);
-    });
+console.log('بوت Telegram يعمل...');
