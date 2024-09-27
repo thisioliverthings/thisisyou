@@ -64,14 +64,15 @@ class AnimeBot {
     }
 
     // دالة لإرسال رد الأنمي
-    sendAnimeResponse(chatId, anime) {
-        // تحقق من وجود كائن الأنمي
-        if (!anime || !anime.length) {
-            this.bot.sendMessage(chatId, 'عذرًا، لم أتمكن من العثور على الأنمي المطلوب.');
-            return; // اخرج من الدالة إذا لم يكن الأنمي موجودًا
-        }
+        sendAnimeResponse(chatId, anime) {
+            // تحقق من وجود كائن الأنمي
+            if (!anime || !anime.length) {
+                this.bot.sendMessage(chatId, 'عذرًا، لم أتمكن من العثور على الأنمي المطلوب.');
+                return; // اخرج من الدالة إذا لم يكن الأنمي موجودًا
+            }
 
-        anime.forEach(animeItem => {
+            // جلب أول نتيجة فقط
+            const animeItem = anime[0];
             const titleRomaji = animeItem.title.romaji;
             const titleNative = animeItem.title.native || 'لا يوجد عنوان باللغة الأصلية';
             const description = animeItem.description || 'لا يوجد وصف متاح';
@@ -94,8 +95,7 @@ class AnimeBot {
                 parse_mode: 'HTML',
                 reply_markup: replyMarkup
             });
-        });
-    }
+        }
 
     // دالة لجلب الوصف الكامل
     async getFullDescription(chatId, animeId) {
