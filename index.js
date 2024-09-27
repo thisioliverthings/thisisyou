@@ -65,40 +65,37 @@ class AnimeBot {
 
     // دالة لإرسال رد الأنمي
     sendAnimeResponse(chatId, anime) {
+        // تحقق من وجود كائن الأنمي
         if (!anime || !anime.length) {
-            this.bot.sendMessage(chatId, this.messages.noResults, { parse_mode: 'HTML' });
+            this.bot.sendMessage(chatId, 'عذرًا، لم أتمكن من العثور على الأنمي المطلوب.');
             return; // اخرج من الدالة إذا لم يكن الأنمي موجودًا
         }
 
-        const animeItem = anime[0]; // نأخذ أول نتيجة فقط
-        const titleRomaji = animeItem.title.romaji;
-        const titleNative = animeItem.title.native || 'لا يوجد عنوان باللغة الأصلية';
-        const description = animeItem.description || 'لا يوجد وصف متاح';
-        const coverImage = animeItem.coverImage.large || 'لا يوجد صورة متاحة';
+        anime.forEach(animeItem => {
+            const titleRomaji = animeItem.title.romaji;
+            const titleNative = animeItem.title.native || 'لا يوجد عنوان باللغة الأصلية';
+            const description = animeItem.description || 'لا يوجد وصف متاح';
+            const coverImage = animeItem.coverImage.large || 'لا يوجد صورة متاحة';
 
-        const responseMessage = `
-            **عنوان الأنمي:**    ${titleRomaji}
-            **العنوان الأصلي:**    ${titleNative}
-            **الوصف:**    ${description}
-            ![صورة الأنمي](${coverImage})
-        `;
+            const responseMessage = `
+                🌟 <b>عنوان الأنمي:</b> 🌟 ${titleRomaji} 
+                <b>العنوان الأصلي:</b> ${titleNative} 
+                📖 <b>الوصف:</b> ${description.replace(/<\/?[^>]+(>|$)/g, "").replace(/\n/g, " ")}
+                <a href="${coverImage}">صورة الأنمي</a>
+            `;
 
-        const replyMarkup = {
-            inline_keyboard: [
-                [{ text: "عرض الوصف الكامل", callback_data: `full_description:${animeItem.id}` }],
-                [{ text: "روابط المشاهدة", callback_data: `watch_links:${animeItem.id}` }]
-            ]
-        };
+            const replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "عرض الوصف الكامل", callback_data: `full_description:${animeItem.id}` }],
+                    [{ text: "روابط المشاهدة", callback_data: `watch_links:${animeItem.id}` }]
+                ]
+            };
 
-        this.bot.sendMessage(chatId, responseMessage, {
-            parse_mode: 'Markdown',
-            reply_markup: replyMarkup
+            this.bot.sendMessage(chatId, responseMessage, {
+                parse_mode: 'HTML',
+                reply_markup: replyMarkup
+            });
         });
-
-        // حفظ بيانات الأنمي في حالة عدم وجودها مسبقًا
-        if (!this.animeData[chatId]) {
-            this.animeData[chatId] = anime; // حفظ البيانات للمستخدم
-        }
     }
 
     // دالة لجلب الوصف الكامل
