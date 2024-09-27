@@ -5,37 +5,6 @@ const axios = require('axios');
 const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
 const bot = new TelegramBot(token, { polling: true });
 
-// رسالة البدء مع شرح الاستخدام (بسيطة وودية)
-const messages = {
-    arabic: `
-<b>🎌 مرحبًا بك في بوت الأنمي!</b>
-
-🔍 ابحث عن أنمي بسرعة وسهولة باستخدام الأزرار أدناه أو أحد الأوامر التالية:
-- <code>بحث [اسم الأنمي]</code>
-- <code>search [anime name]</code>
-
-🔧 أوامر أخرى:
-- /help لعرض هذه الرسالة
-- /settings لتخصيص تجربتك
-    `,
-    english: `
-<b>🎌 Welcome to the Anime Search Bot!</b>
-
-🔍 Easily search for an anime using the buttons below or one of the following commands:
-- <code>search [anime name]</code>
-
-🔧 Other commands:
-- /help to show this message
-- /settings to customize your experience
-    `
-};
-
-// دالة لتحديد اللغة بناءً على المستخدم
-function getLanguage(text) {
-    const arabicWords = ['بحث', 'بث'];
-    return arabicWords.some(word => text.includes(word)) ? 'arabic' : 'english';
-}
-
 // دالة للبحث في AniList API
 async function searchAnime(query) {
     const url = `https://graphql.anilist.co`;
@@ -67,47 +36,36 @@ async function searchAnime(query) {
     }
 }
 
-// دالة لإنشاء رسالة رد متناسقة
-function formatAnimeResponse(anime) {
-    return `
-<b>${anime.title.romaji || anime.title.english || anime.title.native}</b>
-<a href="${anime.coverImage.large}">🖼️</a>
-${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 500) + '...' : 'لا يوجد وصف متاح.'}
-    `;
-}
-
-// التعامل مع الرسائل المختلفة
+// التعامل مع الرسائل
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text.toLowerCase().trim();
-    const language = getLanguage(text);
 
-    if (text.startsWith('بحث') || text.startsWith('search') || text.startsWith('srch') || text.startsWith('بث')) {
+    // معالجة البحث عن الأنمي
+    if (text.startsWith('بحث') || text.startsWith('search')) {
         const query = text.split(' ').slice(1).join(' ');
         if (!query) {
-            return bot.sendMessage(chatId, "❗ يرجى إدخال اسم الأنمي بعد الأمر.", { parse_mode: 'HTML' });
+            return bot.sendMessage(chatId, "❗ يرجى إدخال اسم الأنمي بعد الأمر.");
         }
 
         try {
             const anime = await searchAnime(query);
-            const responseMessage = formatAnimeResponse(anime);
-            bot.sendMessage(chatId, responseMessage, { parse_mode: 'HTML' });
+            const animeTitle = anime.title.romaji || anime.title.english || anime.title.native;
+
+            // عرض عنوان الأنمي مع الأزرار للتحكم بالعرض
+            bot.sendMessage(chatId, `🎌 <b>${animeTitle}</b>`, {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '📖 عرض الوصف', callback_data: `desc_${anime.title.romaji}` }],
+                        [{ text: '📥 تحميل صورة الأنمي', callback_data: `image_${anime.coverImage.large}` }]
+                    ]
+                }
+            });
         } catch (error) {
-            bot.sendMessage(chatId, error.message, { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, error.message);
         }
 
-    } else if (text === '/start' || text === '/help') {
-        // عرض رسالة الترحيب أو المساعدة مع أزرار للتفاعل
-        bot.sendMessage(chatId, messages[language], {
-            parse_mode: 'HTML',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🔍 Search Anime', callback_data: 'search' }],
-                    [{ text: '⚙️ Settings', callback_data: 'settings' }]
-                ]
-            }
-        });
-        
     } else if (text === '/settings') {
         // إعدادات المستخدم
         bot.sendMessage(chatId, "يمكنك تخصيص إعدادات البوت هنا:", {
@@ -119,38 +77,36 @@ bot.on('message', async (msg) => {
             }
         });
     } else {
-        // أمر غير معروف مع زرّ لعرض المساعدة
-        bot.sendMessage(chatId, "❓ الأمر غير معروف. هل تحتاج إلى مساعدة؟", {
-            parse_mode: 'HTML',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: 'عرض الأوامر', callback_data: 'help' }]
-                ]
-            }
-        });
+        // توجيه المستخدم إلى المساعدة بدل إظهار رسائل خطأ متكررة
+        bot.sendMessage(chatId, "❓ الأمر غير معروف. هل تحتاج إلى مساعدة؟");
     }
 });
 
 // التعامل مع الأزرار (Callbacks)
-bot.on('callback_query', (query) => {
+bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    if (data === 'search') {
-        bot.sendMessage(chatId, "❗ أدخل اسم الأنمي الذي ترغب في البحث عنه:");
-    } else if (data === 'settings') {
-        bot.sendMessage(chatId, "⚙️ إعدادات البوت:");
-    } else if (data === 'help') {
-        bot.sendMessage(chatId, messages['arabic'], { parse_mode: 'HTML' });
-    } else if (data === 'change_language') {
-        bot.sendMessage(chatId, "🌐 يمكنك تغيير اللغة من هنا:");
-    } else if (data === 'notifications') {
-        bot.sendMessage(chatId, "🔔 إعدادات الإشعارات:");
+    if (data.startsWith('desc_')) {
+        // عرض الوصف عند طلبه
+        const animeName = data.split('_')[1];
+        try {
+            const anime = await searchAnime(animeName);
+            const description = anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 500) + '...' : 'لا يوجد وصف متاح.';
+            bot.sendMessage(chatId, `<b>📖 الوصف:</b>\n\n${description}`, { parse_mode: 'HTML' });
+        } catch (error) {
+            bot.sendMessage(chatId, "حدث خطأ أثناء جلب الوصف.");
+        }
+
+    } else if (data.startsWith('image_')) {
+        // إرسال صورة الأنمي عند طلبها
+        const imageUrl = data.split('_')[1];
+        bot.sendPhoto(chatId, imageUrl, { caption: "📥 تم تحميل صورة الأنمي." });
     }
 });
 
 // معالجة الأخطاء العامة
 bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
-    bot.sendMessage(chatId, "⚠️ حدث خطأ تقني. يرجى المحاولة لاحقاً.", { parse_mode: 'HTML' });
+    bot.sendMessage(chatId, "⚠️ حدث خطأ تقني. يرجى المحاولة لاحقاً.");
 });
