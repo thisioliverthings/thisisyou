@@ -158,7 +158,7 @@ ${anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 
 
                 let episodesMessage = `📺 حلقات الأنمي ${animeData.title.native}:\n`;
                 episodes.forEach(episode => {
-                    episodesMessage += `[${episode.title}](${episode.siteUrl})\n`;
+                    episodesMessage += `[${episode.title}](${episode.siteUrl})\n`; // استخدام روابط تيليجرام
                 });
 
                 this.bot.sendMessage(chatId, episodesMessage, { parse_mode: 'Markdown' });
