@@ -64,7 +64,7 @@ class AnimeBot {
         }
     }
 
-    
+
     // دالة لإرسال رد الأنمي
     async sendAnimeResponse(chatId, anime) {
         if (!anime || !anime.length) {
@@ -100,29 +100,7 @@ class AnimeBot {
         });
     }
 
-    // دالة لجلب الوصف الكامل
-    async getFullDescription(chatId, animeId) {
-        const url = 'https://graphql.anilist.co';
-        const queryData = {
-            query: `
-            query ($id: Int) {
-                Media(id: $id) {
-                    description
-                }
-            }`,
-            variables: { id: animeId }
-        };
 
-        try {
-            const response = await axios.post(url, queryData);
-            const fullDescription = response.data.data.Media.description.replace(/<\/?[^>]+(>|$)/g, ""); // إزالة العلامات
-            return fullDescription;
-        } catch (error) {
-            console.error("Error fetching full description from AniList API", error);
-            throw new Error(this.messages.errorFetching);
-        }
-    }
-}
     // دالة لجلب الوصف الكامل
     async getFullDescription(chatId, animeId) {
         const url = 'https://graphql.anilist.co';
