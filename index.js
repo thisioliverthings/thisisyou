@@ -24,6 +24,7 @@ class AnimeBot {
         this.bot = new TelegramBot(token, { polling: true });
         this.messages = new Messages();
         this.animeData = {}; // تخزين بيانات الأنمي حسب اسم المستخدم
+        this.mainAnimePage = ''; // تعريف متغير لتخزين الأنمي الرئيسي
 
         // التعامل مع الرسائل
         this.bot.on('message', this.handleMessage.bind(this));
@@ -63,18 +64,15 @@ class AnimeBot {
         }
     }
 
-    // تعريف متغير لتخزين الأنمي الرئيسي
-    let mainAnimePage = '';
-
     // دالة لإرسال رد الأنمي
-    sendAnimeResponse(chatId, anime) {
+    async sendAnimeResponse(chatId, anime) {
         if (!anime || !anime.length) {
-            this.bot.sendMessage(chatId, 'عذرًا، لم أتمكن من العثور على الأنمي المطلوب.');
+            this.bot.sendMessage(chatId, this.messages.noResults);
             return;
         }
 
         // حفظ بيانات الصفحة الرئيسية
-        mainAnimePage = anime;
+        this.mainAnimePage = anime;
 
         anime.forEach(animeItem => {
             const titleRomaji = animeItem.title.romaji;
@@ -102,23 +100,6 @@ class AnimeBot {
         });
     }
 
-
-    // دالة للتعامل مع الأزرار
-    handleCallbackQuery(callbackQuery) {
-        const chatId = callbackQuery.message.chat.id;
-        const data = callbackQuery.data;
-
-        if (data === 'return_to_main_page') {
-            // إرجاع المستخدم إلى صفحة الأنمي الرئيسية
-            this.sendAnimeResponse(chatId, mainAnimePage);
-        } else if (data.startsWith('full_description:')) {
-            // عرض الوصف الكامل هنا
-            const animeId = data.split(':')[1];
-            // معالجة عرض الوصف الكامل
-        } else if (data.startsWith('watch_links:')) {
-            // معالجة عرض روابط المشاهدة
-        }
-    }
     // دالة لجلب الوصف الكامل
     async getFullDescription(chatId, animeId) {
         const url = 'https://graphql.anilist.co';
@@ -189,7 +170,7 @@ ${fullDescription}
         } else if (data.startsWith('watch_links:')) {
             await this.sendWatchLinks(chatId);
         } else if (data === 'return_to_anime') {
-            await this.sendAnimeResponse(chatId, this.animeData[chatId] || []); // استخدم قائمة الأنمي المخزنة
+            await this.sendAnimeResponse(chatId, this.mainAnimePage || []); // استخدم قائمة الأنمي المخزنة
         }
     }
 
@@ -211,16 +192,12 @@ ${fullDescription}
                 return this.bot.sendMessage(chatId, this.messages.inputPrompt, { parse_mode: 'HTML' });
             }
 
-            // تحقق إذا كانت البيانات موجودة مسبقًا
-            if (this.animeData[chatId]) {
-                await this.sendAnimeResponse(chatId, this.animeData[chatId]); // استخدم البيانات المخزنة
-            } else {
-                try {
-                    const animeList = await this.searchAnime(query); // البحث عن الأنمي باستخدام الدالة
-                    await this.sendAnimeResponse(chatId, animeList); // إرسال رد الأنمي مع الأزرار
-                } catch (error) {
-                    this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
-                }
+            try {
+                const animeList = await this.searchAnime(query); // البحث عن الأنمي باستخدام الدالة
+                this.animeData[chatId] = animeList; // تخزين البيانات للرجوع إليها لاحقًا
+                await this.sendAnimeResponse(chatId, animeList); // إرسال رد الأنمي مع الأزرار
+            } catch (error) {
+                this.bot.sendMessage(chatId, this.messages.errorFetching, { parse_mode: 'HTML' });
             }
         } else {
             this.bot.sendMessage(chatId, this.messages.unknownCommand, { parse_mode: 'HTML' });
