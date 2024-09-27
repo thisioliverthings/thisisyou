@@ -27,6 +27,8 @@ class AnimeBot {
 
         // التعامل مع الرسائل
         this.bot.on('message', this.handleMessage.bind(this));
+        // التعامل مع ردود الأزرار
+        this.bot.on('callback_query', this.handleCallbackQuery.bind(this));
     }
 
     // دالة للبحث عن الأنمي باستخدام AniList API
@@ -64,14 +66,15 @@ class AnimeBot {
     // دالة لتحميل بيانات الأنمي
     async sendAnimeResponse(chatId, animeList) {
         const anime = animeList[0]; // الحصول على أول أنمي من القائمة
-        const title = anime.title.native || anime.title.romaji;
+        const titleRomaji = anime.title.romaji;
+        const titleNative = anime.title.native;
         const shortDescription = anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "").slice(0, 200) + '...' : 'لا يوجد وصف متاح.';
 
         const responseMessage = `
-        <b>${title}</b>
-        <a href="${anime.coverImage.large}">🖼️</a>
-        ${shortDescription}
-        `;
+<b>${titleNative} - ${titleRomaji}</b>
+<a href="${anime.coverImage.large}">🖼️</a>
+${shortDescription}
+`;
 
         const replyMarkup = {
             inline_keyboard: [
@@ -112,12 +115,12 @@ class AnimeBot {
     // دالة لعرض روابط المشاهدة
     async sendWatchLinks(chatId) {
         const watchLinks = `
-        اختر منصة المشاهدة:
-        - [Netflix](https://www.netflix.com)
-        - [سينمانا](https://www.cinemana.com)
-        - [فودو](https://www.vudu.com)
-        - [انمي سلاير](https://www.anime-slayer.com)
-        - [انمي كلاود](https://www.animecloud.com)
+اختر منصة المشاهدة:
+- [Netflix](https://www.netflix.com)
+- [سينمانا](https://www.cinemana.com)
+- [فودو](https://www.vudu.com)
+- [انمي سلاير](https://www.anime-slayer.com)
+- [انمي كلاود](https://www.animecloud.com)
         `;
 
         const replyMarkup = {
@@ -140,9 +143,13 @@ class AnimeBot {
         if (data.startsWith('full_description:')) {
             const animeId = data.split(':')[1];
             const fullDescription = await this.getFullDescription(chatId, animeId);
-            this.bot.editMessageText(fullDescription, {
+            this.bot.editMessageText(`
+<b>الوصف الكامل:</b>
+${fullDescription}
+`, {
                 chat_id: chatId,
                 message_id: callbackQuery.message.message_id,
+                parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [[
                         { text: "عودة", callback_data: 'return_to_anime' }
@@ -196,6 +203,3 @@ const animeBot = new AnimeBot(token);
 animeBot.bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
 });
-
-// التعامل مع ردود الأزرار
-animeBot.bot.on('callback_query', animeBot.handleCallbackQuery.bind(animeBot));
