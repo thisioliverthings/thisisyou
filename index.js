@@ -53,11 +53,13 @@ class AnimeBot {
             variables: { search: query }
         };
 
+        console.log("Sending request to AniList with query:", queryData); // طباعة البيانات المرسلة
+
         try {
             const response = await axios.post(url, queryData);
             return response.data.data.Page.media; // استرجاع قائمة الأنمي
         } catch (error) {
-            console.error("Error fetching anime from AniList API", error);
+            console.error("Error fetching anime from AniList API:", error.message || error);
             throw new Error(this.messages.errorFetching);
         }
     }
@@ -109,12 +111,14 @@ class AnimeBot {
             variables: { id: animeId }
         };
 
+        console.log("Fetching full description for anime ID:", animeId); // طباعة ID الأنمي
+
         try {
             const response = await axios.post(url, queryData);
             const fullDescription = response.data.data.Media.description.replace(/<\/?[^>]+(>|$)/g, ""); // إزالة العلامات
             return fullDescription;
         } catch (error) {
-            console.error("Error fetching full description from AniList API", error);
+            console.error("Error fetching full description from AniList API:", error.message || error);
             throw new Error(this.messages.errorFetching);
         }
     }
@@ -211,4 +215,9 @@ const animeBot = new AnimeBot(token);
 // معالجة الأخطاء العامة
 animeBot.bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
+});
+
+// التعامل مع الأخطاء العامة
+process.on('unhandledRejection', (error) => {
+    console.error('Unhandled Rejection:', error);
 });
