@@ -8,13 +8,13 @@ const token = '8119443898:AAFwm5E368v-Ov-M_XGBQYCJxj1vMDQbv-0';
 // فئة الرسائل
 class Messages {
     constructor() {
-        this.welcome = "✨ مرحبًا بك في بوت الأنمي! يمكنك البحث عن أي أنمي هنا. 🌟";
-        this.inputPrompt = "📝 يرجى إدخال اسم الأنمي الذي ترغب في البحث عنه.";
-        this.noResults = "❌ لم يتم العثور على أي نتائج.";
-        this.errorFetching = "⚠️ حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
-        this.unknownCommand = "🔍 لا أفهم هذه الرسالة. يرجى استخدام الأوامر المعروفة.";
-        this.viewMore = "📖 هل ترغب في عرض الوصف الكامل؟";
-        this.watchLinks = "🎬 اختر منصة المشاهدة:";
+        this.welcome = "مرحبًا بك في بوت الأنمي! يمكنك البحث عن أي أنمي هنا.";
+        this.inputPrompt = "يرجى إدخال اسم الأنمي الذي ترغب في البحث عنه.";
+        this.noResults = "لم يتم العثور على أي نتائج.";
+        this.errorFetching = "حدث خطأ أثناء جلب المعلومات. تأكد من أنك قمت بإدخال اسم أنمي صحيح.";
+        this.unknownCommand = "لا أفهم هذه الرسالة. يرجى استخدام الأوامر المعروفة.";
+        this.viewMore = "هل ترغب في عرض الوصف الكامل؟";
+        this.watchLinks = "اختر منصة المشاهدة:";
     }
 }
 
@@ -44,10 +44,6 @@ class AnimeBot {
                         description
                         coverImage {
                             large
-                        }
-                        sites {
-                            site
-                            url
                         }
                     }
                 }
@@ -113,21 +109,23 @@ class AnimeBot {
     }
 
     // دالة لعرض روابط المشاهدة
-    async sendWatchLinks(chatId, anime) {
-        const watchLinks = anime.sites.map(site => `- [${site.site}](${site.url})`).join('\n');
-
-        const responseMessage = `
-        🎬 روابط المشاهدة:
-        ${watchLinks}
+    async sendWatchLinks(chatId) {
+        const watchLinks = `
+        اختر منصة المشاهدة:
+        - [Netflix](https://www.netflix.com)
+        - [سينمانا](https://www.cinemana.com)
+        - [فودو](https://www.vudu.com)
+        - [انمي سلاير](https://www.anime-slayer.com)
+        - [انمي كلاود](https://www.animecloud.com)
         `;
 
         const replyMarkup = {
             inline_keyboard: [
-                [{ text: "🔙 العودة إلى البحث", callback_data: 'return_to_search' }]
+                [{ text: "عودة", callback_data: 'return_to_anime' }]
             ]
         };
 
-        this.bot.sendMessage(chatId, responseMessage, {
+        this.bot.sendMessage(chatId, watchLinks, {
             parse_mode: 'Markdown',
             reply_markup: replyMarkup
         });
@@ -146,15 +144,13 @@ class AnimeBot {
                 message_id: callbackQuery.message.message_id,
                 reply_markup: {
                     inline_keyboard: [[
-                        { text: "🔙 العودة إلى البحث", callback_data: 'return_to_search' }
+                        { text: "عودة", callback_data: 'return_to_anime' }
                     ]]
                 }
             });
         } else if (data.startsWith('watch_links:')) {
-            const animeId = data.split(':')[1];
-            const animeList = await this.searchAnime(animeId); // البحث عن الأنمي لجلب الروابط
-            await this.sendWatchLinks(chatId, animeList[0]);
-        } else if (data === 'return_to_search') {
+            await this.sendWatchLinks(chatId);
+        } else if (data === 'return_to_anime') {
             await this.sendAnimeResponse(chatId, this.animeList); // قم بتخزين animeList في حالة عدم توفره
         }
     }
