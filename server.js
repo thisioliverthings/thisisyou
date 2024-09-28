@@ -95,13 +95,13 @@ class TelegramPDFBot {
                 ]
             }
         };
-        this.bot.editMessageText(helpText, { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML', reply_markup: options.reply_markup });
+        this.bot.sendMessage(chatId, helpText, { parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
     askForInput(chatId) {
         const askText = '📝 من فضلك، أرسل لي النص الذي ترغب في تحويله إلى PDF.';
         this.cache.set(chatId, { waitingForInput: true }); // الاحتفاظ بالحالة
-        this.bot.editMessageText(askText, { chat_id: chatId, message_id: query.message.message_id });
+        this.bot.sendMessage(chatId, askText);
     }
 
     handleCallbackQuery(query) {
@@ -112,7 +112,7 @@ class TelegramPDFBot {
         } else if (query.data === "convert_file") {
             const askText = '📂 من فضلك، أرسل لي الملف الذي ترغب في تحويله إلى PDF.';
             this.cache.set(chatId, { waitingForFile: true });
-            this.bot.editMessageText(askText, { chat_id: chatId, message_id: query.message.message_id });
+            this.bot.sendMessage(chatId, askText);
         } else if (query.data === "help") {
             this.sendHelpMessage(chatId);
         } else if (query.data === "back_to_welcome") {
