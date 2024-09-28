@@ -59,18 +59,15 @@ class TelegramPDFBot {
 
     init() {
         this.bot.onText(/\/start/, (msg) => this.sendWelcomeMessage(msg.chat.id));
-        this.bot.onText(/\/help/, (msg) => this.sendHelpMessage(msg.chat.id));
-        this.bot.onText(/\/تحويل/, (msg) => this.askForInput(msg.chat.id));
         this.bot.on('callback_query', (query) => this.handleCallbackQuery(query));
         this.bot.on('message', (msg) => this.handleUserInput(msg));
-        this.bot.on('document', (msg) => this.handleDocumentMessage(msg));
     }
 
-    sendWelcomeMessage(chatId) {
+    async sendWelcomeMessage(chatId) {
         const welcomeText = `
 🌟 <b>مرحبًا بك في بوت تحويل النصوص إلى PDF!</b>\n
 يمكنك استخدام الأزرار أدناه للتفاعل مع البوت.\n
-إذا كنت بحاجة للمساعدة، استخدم الزر <b>/help</b>.
+إذا كنت بحاجة للمساعدة، استخدم الزر <b>تعليمات</b>.
 `;
         const options = {
             reply_markup: {
@@ -84,20 +81,27 @@ class TelegramPDFBot {
         this.bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
-    sendHelpMessage(chatId) {
+    async sendHelpMessage(chatId) {
         const helpText = `
 📚 <b>تعليمات الاستخدام:</b>\n
 1. استخدم زر <b>تحويل نص</b> لإرسال نصوص.\n
 2. استخدم زر <b>تحويل ملف</b> لإرسال ملفات نصية (مثل .txt أو .docx).\n
 3. إذا كنت بحاجة لمساعدة إضافية، يمكنك دائمًا استخدام زر <b>تعليمات</b>.
 `;
-        this.bot.sendMessage(chatId, helpText, { parse_mode: 'HTML' });
+        const options = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "رجوع", callback_data: "back_to_welcome" }]
+                ]
+            }
+        };
+        this.bot.editMessageText(helpText, { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
     askForInput(chatId) {
         const askText = '📝 من فضلك، أرسل لي النص الذي ترغب في تحويله إلى PDF.';
         this.cache.set(chatId, { waitingForInput: true }); // الاحتفاظ بالحالة
-        this.bot.sendMessage(chatId, askText);
+        this.bot.editMessageText(askText, { chat_id: chatId, message_id: query.message.message_id });
     }
 
     handleCallbackQuery(query) {
@@ -107,33 +111,32 @@ class TelegramPDFBot {
             this.askForInput(chatId);
         } else if (query.data === "convert_file") {
             const askText = '📂 من فضلك، أرسل لي الملف الذي ترغب في تحويله إلى PDF.';
-            this.bot.sendMessage(chatId, askText);
-            this.cache.set(chatId, { waitingForFile: true }); // الاحتفاظ بالحالة
+            this.cache.set(chatId, { waitingForFile: true });
+            this.bot.editMessageText(askText, { chat_id: chatId, message_id: query.message.message_id });
         } else if (query.data === "help") {
             this.sendHelpMessage(chatId);
+        } else if (query.data === "back_to_welcome") {
+            this.sendWelcomeMessage(chatId);
         }
-        
-        // إلغاء التأشير
+
         this.bot.answerCallbackQuery(query.id);
     }
 
     handleUserInput(msg) {
         const chatId = msg.chat.id;
 
-        // تحقق مما إذا كان المستخدم في وضع التحويل
         if (this.cache.get(chatId)?.waitingForInput) {
             if (msg.text) {
                 this.convertTextToPDF(chatId, msg.text);
             } else {
                 this.bot.sendMessage(chatId, '❌ يرجى إرسال نص.');
             }
-            return; // إنهاء الدالة
+            return;
         }
 
-        // تحقق مما إذا كان المستخدم في وضع تحويل الملف
         if (this.cache.get(chatId)?.waitingForFile && msg.document) {
             this.handleDocumentMessage(msg);
-            return; // إنهاء الدالة
+            return;
         }
     }
 
@@ -143,8 +146,8 @@ class TelegramPDFBot {
         try {
             await PDFConverter.textToPDF(text, outputPath);
             await this.bot.sendDocument(chatId, outputPath);
-            fs.unlinkSync(outputPath); // حذف الملف بعد إرساله
-            this.cache.delete(chatId); // حذف الحالة بعد التحويل
+            fs.unlinkSync(outputPath);
+            this.cache.delete(chatId);
         } catch (err) {
             ErrorHandler.handleError(this.bot, chatId, err.message);
         }
@@ -173,9 +176,9 @@ class TelegramPDFBot {
             const text = fs.readFileSync(filePath, 'utf-8');
             await PDFConverter.textToPDF(text, outputPath);
             await this.bot.sendDocument(chatId, outputPath);
-            fs.unlinkSync(filePath); // حذف الملف الأصلي
-            fs.unlinkSync(outputPath); // حذف الملف بعد إرساله
-            this.cache.delete(chatId); // حذف الحالة بعد التحويل
+            fs.unlinkSync(filePath);
+            fs.unlinkSync(outputPath);
+            this.cache.delete(chatId);
         } catch (err) {
             ErrorHandler.handleError(this.bot, chatId, err.message);
         }
