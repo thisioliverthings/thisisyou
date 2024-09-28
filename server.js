@@ -81,7 +81,7 @@ class TelegramPDFBot {
         this.bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
-    async sendHelpMessage(chatId) {
+    async sendHelpMessage(chatId, messageId) {
         const helpText = `
 📚 <b>تعليمات الاستخدام:</b>\n
 1. استخدم زر <b>تحويل نص</b> لإرسال نصوص.\n
@@ -95,26 +95,30 @@ class TelegramPDFBot {
                 ]
             }
         };
-        this.bot.sendMessage(chatId, helpText, { parse_mode: 'HTML', reply_markup: options.reply_markup });
+        // تعديل الرسالة الحالية بدلاً من إرسال رسالة جديدة
+        this.bot.editMessageText(helpText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
-    askForInput(chatId) {
+    askForInput(chatId, messageId) {
         const askText = '📝 من فضلك، أرسل لي النص الذي ترغب في تحويله إلى PDF.';
         this.cache.set(chatId, { waitingForInput: true }); // الاحتفاظ بالحالة
-        this.bot.sendMessage(chatId, askText);
+        // تعديل الرسالة الحالية
+        this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId });
     }
 
     handleCallbackQuery(query) {
         const chatId = query.message.chat.id;
+        const messageId = query.message.message_id;
 
         if (query.data === "convert_text") {
-            this.askForInput(chatId);
+            this.askForInput(chatId, messageId);
         } else if (query.data === "convert_file") {
             const askText = '📂 من فضلك، أرسل لي الملف الذي ترغب في تحويله إلى PDF.';
             this.cache.set(chatId, { waitingForFile: true });
-            this.bot.sendMessage(chatId, askText);
+            // تعديل الرسالة الحالية
+            this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId });
         } else if (query.data === "help") {
-            this.sendHelpMessage(chatId);
+            this.sendHelpMessage(chatId, messageId);
         } else if (query.data === "back_to_welcome") {
             this.sendWelcomeMessage(chatId);
         }
