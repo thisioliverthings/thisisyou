@@ -3,30 +3,17 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const https = require('https');
 
-// كلاس لتعامل مع الأخطاء
+// كلاس للتعامل مع الأخطاء
 class ErrorHandler {
-    static handleError(chatId, message) {
+    static handleError(bot, chatId, message) {
         console.error(message);
-        bot.sendMessage(chatId, 'حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.');
+        bot.sendMessage(chatId, '❌ حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.');
     }
 }
 
-// كلاس لتمثيل بوت تليجرام
-class TelegramPDFBot {
-    constructor(token) {
-        this.bot = new TelegramBot(token, { polling: true });
-        this.cache = new Map(); // كاش الملفات المؤقت
-        this.init();
-    }
-
-    // تهيئة أوامر البوت
-    init() {
-        this.bot.on('message', (msg) => this.handleTextMessage(msg));
-        this.bot.on('document', (msg) => this.handleDocumentMessage(msg));
-    }
-
-    // دالة لتحويل النص إلى PDF
-    async textToPDF(text, outputFilePath) {
+// كلاس لتحويل النص إلى PDF
+class PDFConverter {
+    static async textToPDF(text, outputFilePath) {
         return new Promise((resolve, reject) => {
             try {
                 const doc = new PDFDocument();
@@ -44,8 +31,7 @@ class TelegramPDFBot {
         });
     }
 
-    // دالة لتحميل الملف من التليجرام
-    downloadFile(fileUrl, outputPath) {
+    static downloadFile(fileUrl, outputPath) {
         return new Promise((resolve, reject) => {
             const file = fs.createWriteStream(outputPath);
             https.get(fileUrl, (response) => {
@@ -61,50 +47,106 @@ class TelegramPDFBot {
             });
         });
     }
+}
 
-    // دالة لمعالجة الرسائل النصية
-    async handleTextMessage(msg) {
+// كلاس لتمثيل بوت تليجرام
+class TelegramPDFBot {
+    constructor(token) {
+        this.bot = new TelegramBot(token, { polling: true });
+        this.cache = new Map(); // كاش الملفات المؤقت
+        this.init();
+    }
+
+    init() {
+        this.bot.onText(/\/start/, (msg) => this.sendWelcomeMessage(msg.chat.id));
+        this.bot.onText(/\/help/, (msg) => this.sendHelpMessage(msg.chat.id));
+        this.bot.onText(/\/تحويل/, (msg) => this.askForInput(msg.chat.id));
+        this.bot.on('message', (msg) => this.handleUserInput(msg));
+        this.bot.on('document', (msg) => this.handleDocumentMessage(msg));
+    }
+
+    sendWelcomeMessage(chatId) {
+        const welcomeText = `
+🌟 مرحبًا بك في بوت تحويل النصوص إلى PDF!<n>
+يمكنك استخدام الأمر <b>/تحويل</b> لإرسال نص أو ملف وسأقوم بتحويله إلى ملف PDF لك بشكل تلقائي.<n>
+إذا كنت بحاجة للمساعدة، استخدم الأمر <b>/help</b>.
+`;
+        this.bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML' });
+    }
+
+    sendHelpMessage(chatId) {
+        const helpText = `
+📚 <b>تعليمات الاستخدام:</b><n>
+1. استخدم الأمر <b>/تحويل</b> لإرسال نصوص أو ملفات نصية (مثل .txt أو .docx).<n>
+2. سأقوم بتحويلها إلى ملف PDF تلقائيًا.<n>
+3. إذا كنت بحاجة لمساعدة إضافية، يمكنك دائمًا استخدام الأمر <b>/help</b>.
+`;
+        this.bot.sendMessage(chatId, helpText, { parse_mode: 'HTML' });
+    }
+
+    askForInput(chatId) {
+        const askText = '📝 من فضلك، أرسل لي النص أو الملف الذي ترغب في تحويله إلى PDF.';
+        this.bot.sendMessage(chatId, askText);
+    }
+
+    async handleUserInput(msg) {
         const chatId = msg.chat.id;
         const text = msg.text;
 
-        // تحقق من وجود النص في الكاش
-        if (this.cache.has(text)) {
-            await this.bot.sendDocument(chatId, this.cache.get(text));
-            return;
-        }
-
-        if (text) {
+        // تحقق من أن الرسالة ليست أمرًا
+        if (!msg.document && !text.startsWith('/')) {
             const pdfFilename = `output_${chatId}.pdf`;
+
+            // إضافة ذكاء اصطناعي بسيط لتقديم ردود ذكية
+            const responseText = this.getAIResponse(text);
 
             try {
                 // تحويل النص إلى PDF
-                await this.textToPDF(text, pdfFilename);
-                this.cache.set(text, pdfFilename); // إضافة الملف إلى الكاش
+                await PDFConverter.textToPDF(responseText, pdfFilename);
+                this.cache.set(responseText, pdfFilename); // إضافة الملف إلى الكاش
 
                 // إرسال ملف PDF
-                await this.bot.sendDocument(chatId, pdfFilename);
+                await this.bot.sendDocument(chatId, pdfFilename, {}, {
+                    caption: '📄 إليك ملف PDF الخاص بك!'
+                });
 
                 // حذف الملف بعد 5 دقائق
                 setTimeout(() => {
                     fs.unlinkSync(pdfFilename);
-                    this.cache.delete(text);
+                    this.cache.delete(responseText);
                 }, 300000);
             } catch (err) {
-                ErrorHandler.handleError(chatId, err);
+                ErrorHandler.handleError(this.bot, chatId, err);
             }
         }
     }
 
-    // دالة لمعالجة الملفات النصية
+    getAIResponse(inputText) {
+        // هنا يمكنك استخدام نموذج ذكاء اصطناعي لتحليل النص وتقديم ردود ذكية.
+        // سنقوم بإنشاء ردود بسيطة بناءً على مدخلات المستخدم.
+
+        if (inputText.toLowerCase().includes('مرحبا')) {
+            return 'أهلاً! كيف يمكنني مساعدتك اليوم؟';
+        } else if (inputText.toLowerCase().includes('كيف حالك')) {
+            return 'أنا بخير، شكرًا! ماذا عنك؟';
+        } else {
+            return inputText; // إذا لم يكن هناك استجابة خاصة، نعيد النص كما هو
+        }
+    }
+
     async handleDocumentMessage(msg) {
         const chatId = msg.chat.id;
         const fileId = msg.document.file_id;
         const fileType = msg.document.mime_type;
-        const allowedFileTypes = ['text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const allowedFileTypes = [
+            'text/plain',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
 
         // التأكد من نوع الملف
         if (!allowedFileTypes.includes(fileType)) {
-            return this.bot.sendMessage(chatId, 'يرجى إرسال ملف نصي أو .docx فقط.');
+            return this.bot.sendMessage(chatId, '🚫 يرجى إرسال ملف نصي أو .docx فقط.');
         }
 
         try {
@@ -112,27 +154,27 @@ class TelegramPDFBot {
             const txtFilename = `input_${chatId}.txt`;
 
             // تحميل الملف
-            const downloadedFile = await this.downloadFile(fileUrl, txtFilename);
-
-            // قراءة محتوى الملف
+            const downloadedFile = await PDFConverter.downloadFile(fileUrl, txtFilename);
             const text = fs.readFileSync(downloadedFile, 'utf8');
             const pdfFilename = `output_${chatId}.pdf`;
 
             // تحويل النص من الملف إلى PDF
-            await this.textToPDF(text, pdfFilename);
+            await PDFConverter.textToPDF(text, pdfFilename);
 
             // إرسال ملف PDF
-            await this.bot.sendDocument(chatId, pdfFilename);
+            await this.bot.sendDocument(chatId, pdfFilename, {}, {
+                caption: '📄 إليك ملف PDF الخاص بك!'
+            });
 
             // حذف الملفات بعد الإرسال
             fs.unlinkSync(pdfFilename);
             fs.unlinkSync(txtFilename);
         } catch (err) {
-            ErrorHandler.handleError(chatId, err);
+            ErrorHandler.handleError(this.bot, chatId, err);
         }
     }
 }
 
 // استبدل التوكن بالتوكن الخاص بك
-const token = '7739626112:AAHVJXMdorsiiyTsp9wtclsbnks84m4g8eI';
+const token = '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY';
 const pdfBot = new TelegramPDFBot(token);
