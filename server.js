@@ -220,5 +220,5 @@ class TelegramPDFBot {
 }
 
 // استبدل '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY' برمز البوت الخاص بك
-const token = 'YOUR_TELEGRAM_BOT_TOKEN';
+const token = '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY';
 const pdfBot = new TelegramPDFBot(token);
