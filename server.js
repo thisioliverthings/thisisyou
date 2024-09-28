@@ -55,6 +55,7 @@ class TelegramPDFBot {
     constructor(token) {
         this.bot = new TelegramBot(token, { polling: true });
         this.cache = new Map(); // كاش الملفات المؤقت
+        this.currentFormatIndex = {}; // لتخزين فهرس التنسيق الحالي لكل مستخدم
         this.init();
     }
 
@@ -133,6 +134,12 @@ class TelegramPDFBot {
             case "back_to_welcome":
                 this.sendWelcomeMessage(chatId);
                 break;
+            case "next_format":
+                this.showNextFormat(chatId);
+                break;
+            case "previous_format":
+                this.showPreviousFormat(chatId);
+                break;
         }
 
         this.bot.answerCallbackQuery(query.id);
@@ -158,7 +165,7 @@ class TelegramPDFBot {
 
         if (this.cache.get(chatId)?.waitingForInput) {
             if (msg.text) {
-                this.convertTextToPDF(chatId, msg.text);
+                this.showFormatOptions(chatId, msg.text);
             } else {
                 this.bot.sendMessage(chatId, '❌ يرجى إرسال نص.');
             }
@@ -171,54 +178,101 @@ class TelegramPDFBot {
         }
     }
 
-    // تحويل النص إلى PDF
-    async convertTextToPDF(chatId, text) {
-        const outputPath = `output_${chatId}.pdf`;
+    // عرض خيارات التنسيق
+    showFormatOptions(chatId, text) {
+        const formats = [
+            'تنسيق 1: نص عادي',
+            'تنسيق 2: نص مع عنوان',
+            'تنسيق 3: نص مع ترقيم'
+        ];
+        
+        this.currentFormatIndex[chatId] = 0; // تعيين الفهرس الحالي
+        const options = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: formats[this.currentFormatIndex[chatId]], callback_data: "current_format" }],
+                    [{ text: "التالي", callback_data: "next_format" }, { text: "رجوع", callback_data: "previous_format" }]
+                ]
+            }
+        };
 
-        try {
-            await PDFConverter.textToPDF(text, outputPath);
-            await this.bot.sendDocument(chatId, outputPath);
-            fs.unlinkSync(outputPath);
-            this.cache.delete(chatId);
-        } catch (err) {
-            ErrorHandler.handleError(this.bot, chatId, err.message);
-        }
+        const formatMessage = `📝 <b>اختر تنسيق:</b>\n${formats[this.currentFormatIndex[chatId]]}`;
+        this.bot.sendMessage(chatId, formatMessage, { parse_mode: 'HTML', reply_markup: options.reply_markup });
+        this.cache.set(chatId, { waitingForFormat: true, text }); // تخزين النص المدخل
     }
 
-    // التعامل مع الرسائل التي تحتوي على مستندات
-    handleDocumentMessage(msg) {
+    // عرض التنسيق التالي
+    showNextFormat(chatId) {
+        const formats = [
+            'تنسيق 1: نص عادي',
+            'تنسيق 2: نص مع عنوان',
+            'تنسيق 3: نص مع ترقيم'
+        ];
+
+        this.currentFormatIndex[chatId] = (this.currentFormatIndex[chatId] + 1) % formats.length; // الانتقال إلى التنسيق التالي
+        const formatMessage = `📝 <b>اختر تنسيق:</b>\n${formats[this.currentFormatIndex[chatId]]}`;
+        const options = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: formats[this.currentFormatIndex[chatId]], callback_data: "current_format" }],
+                    [{ text: "التالي", callback_data: "next_format" }, { text: "رجوع", callback_data: "previous_format" }]
+                ]
+            }
+        };
+
+        this.bot.editMessageText(formatMessage, { chat_id: chatId, parse_mode: 'HTML', reply_markup: options.reply_markup });
+    }
+
+    // عرض التنسيق السابق
+    showPreviousFormat(chatId) {
+        const formats = [
+            'تنسيق 1: نص عادي',
+            'تنسيق 2: نص مع عنوان',
+            'تنسيق 3: نص مع ترقيم'
+        ];
+
+        this.currentFormatIndex[chatId] = (this.currentFormatIndex[chatId] - 1 + formats.length) % formats.length; // الانتقال إلى التنسيق السابق
+        const formatMessage = `📝 <b>اختر تنسيق:</b>\n${formats[this.currentFormatIndex[chatId]]}`;
+        const options = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "التالي", callback_data: "next_format" }, { text: "رجوع", callback_data: "previous_format" }]
+                ]
+            }
+        };
+
+        this.bot.editMessageText(formatMessage, { chat_id: chatId, parse_mode: 'HTML', reply_markup: options.reply_markup });
+    }
+
+    // التعامل مع رسالة الوثيقة
+    async handleDocumentMessage(msg) {
         const chatId = msg.chat.id;
         const fileId = msg.document.file_id;
 
-        this.bot.getFile(fileId).then((file) => {
-            const fileUrl = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
-            const outputPath = `document_${chatId}.pdf`;
-
-            PDFConverter.downloadFile(fileUrl, outputPath)
-                .then(() => {
-                    this.bot.sendMessage(chatId, '✅ تم تحميل الملف بنجاح. سأقوم بتحويله إلى PDF...');
-                    this.convertFileToPDF(chatId, outputPath);
-                })
-                .catch((err) => ErrorHandler.handleError(this.bot, chatId, err.message));
-        });
+        // تحميل الملف
+        const fileLink = await this.bot.getFileLink(fileId);
+        const outputPath = `./${msg.document.file_name}`;
+        
+        try {
+            await PDFConverter.downloadFile(fileLink, outputPath);
+            const convertedFilePath = await this.convertFileToPDF(outputPath);
+            await this.bot.sendDocument(chatId, convertedFilePath);
+            fs.unlinkSync(outputPath); // حذف الملف بعد الإرسال
+        } catch (error) {
+            ErrorHandler.handleError(this.bot, chatId, `❌ فشل تحويل الملف: ${error.message}`);
+        }
     }
 
-    // تحويل الملف إلى PDF
-    async convertFileToPDF(chatId, filePath) {
-        const outputPath = `output_${chatId}.pdf`;
-        try {
-            const text = fs.readFileSync(filePath, 'utf-8');
-            await PDFConverter.textToPDF(text, outputPath);
-            await this.bot.sendDocument(chatId, outputPath);
-            fs.unlinkSync(filePath);
-            fs.unlinkSync(outputPath);
-            this.cache.delete(chatId);
-        } catch (err) {
-            ErrorHandler.handleError(this.bot, chatId, err.message);
-        }
+    // تحويل ملف إلى PDF
+    async convertFileToPDF(inputPath) {
+        const outputFilePath = `${inputPath.replace(/\.txt$/, '')}.pdf`; // استخدام نفس اسم الملف مع إضافة .pdf
+        const text = fs.readFileSync(inputPath, 'utf-8');
+        
+        await PDFConverter.textToPDF(text, outputFilePath);
+        return outputFilePath;
     }
 }
 
-// استبدل '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY' برمز البوت الخاص بك
+// بدء البوت
 const token = '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY';
-const pdfBot = new TelegramPDFBot(token);
+const bot = new TelegramPDFBot(token);
