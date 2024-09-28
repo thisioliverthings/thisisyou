@@ -3,7 +3,6 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const https = require('https');
 
-// كلاس للتعامل مع الأخطاء
 class ErrorHandler {
     static handleError(bot, chatId, message) {
         console.error(message);
@@ -11,7 +10,6 @@ class ErrorHandler {
     }
 }
 
-// كلاس لتحويل النص إلى PDF
 class PDFConverter {
     static async textToPDF(text, outputFilePath) {
         return new Promise((resolve, reject) => {
@@ -38,22 +36,21 @@ class PDFConverter {
                 response.pipe(file);
                 file.on('finish', () => resolve(outputPath));
                 file.on('error', (err) => {
-                    fs.unlinkSync(outputPath); // حذف الملف في حال الخطأ
+                    fs.unlinkSync(outputPath); 
                     reject(err);
                 });
             }).on('error', (err) => {
-                fs.unlinkSync(outputPath); // حذف الملف في حال الخطأ
+                fs.unlinkSync(outputPath); 
                 reject(err);
             });
         });
     }
 }
 
-// كلاس لتمثيل بوت تليجرام
 class TelegramPDFBot {
     constructor(token) {
         this.bot = new TelegramBot(token, { polling: true });
-        this.cache = new Map(); // كاش الملفات المؤقت
+        this.cache = new Map(); 
         this.init();
     }
 
@@ -95,22 +92,13 @@ class TelegramPDFBot {
                 ]
             }
         };
-        // تعديل الرسالة الحالية بدلاً من إرسال رسالة جديدة
         this.bot.editMessageText(helpText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
     askForInput(chatId, messageId) {
         const askText = '📝 من فضلك، أرسل لي النص الذي ترغب في تحويله إلى PDF.';
-        this.cache.set(chatId, { waitingForInput: true }); // الاحتفاظ بالحالة
-        const options = {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "رجوع", callback_data: "back_to_welcome" }]
-                ]
-            }
-        };
-        // تعديل الرسالة الحالية
-        this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId, reply_markup: options.reply_markup });
+        this.cache.set(chatId, { waitingForInput: true }); 
+        this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId });
     }
 
     handleCallbackQuery(query) {
@@ -122,15 +110,7 @@ class TelegramPDFBot {
         } else if (query.data === "convert_file") {
             const askText = '📂 من فضلك، أرسل لي الملف الذي ترغب في تحويله إلى PDF.';
             this.cache.set(chatId, { waitingForFile: true });
-            const options = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "رجوع", callback_data: "back_to_welcome" }]
-                    ]
-                }
-            };
-            // تعديل الرسالة الحالية
-            this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId, reply_markup: options.reply_markup });
+            this.bot.editMessageText(askText, { chat_id: chatId, message_id: messageId });
         } else if (query.data === "help") {
             this.sendHelpMessage(chatId, messageId);
         } else if (query.data === "back_to_welcome") {
