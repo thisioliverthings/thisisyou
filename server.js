@@ -236,7 +236,7 @@ class TelegramPDFBot {
         const options = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "التالي", callback_data: "next_format" }, { text: "رجوع", callback_data: "previous_format" }]
+                    [{ text: "التالي", callback: "next_format" }, { text: "رجوع", callback_data: "previous_format" }]
                 ]
             }
         };
@@ -244,35 +244,54 @@ class TelegramPDFBot {
         this.bot.editMessageText(formatMessage, { chat_id: chatId, parse_mode: 'HTML', reply_markup: options.reply_markup });
     }
 
-    // التعامل مع رسالة الوثيقة
+    // معالجة رسالة الملف المرفق
     async handleDocumentMessage(msg) {
         const chatId = msg.chat.id;
         const fileId = msg.document.file_id;
+        const filePath = await this.bot.getFile(fileId);
+        const fileUrl = `https://api.telegram.org/file/bot${this.bot.token}/${filePath.file_path}`;
 
-        // تحميل الملف
-        const fileLink = await this.bot.getFileLink(fileId);
-        const outputPath = `./${msg.document.file_name}`;
-        
         try {
-            await PDFConverter.downloadFile(fileLink, outputPath);
-            const convertedFilePath = await this.convertFileToPDF(outputPath);
-            await this.bot.sendDocument(chatId, convertedFilePath);
-            fs.unlinkSync(outputPath); // حذف الملف بعد الإرسال
+            // تحميل الملف
+            const outputFilePath = `./${msg.document.file_name}`;
+            await PDFConverter.downloadFile(fileUrl, outputFilePath);
+            await this.bot.sendMessage(chatId, `✅ تم تحميل الملف بنجاح: ${msg.document.file_name}`);
+            // هنا يمكن إضافة المزيد من المعالجة للملف المحمّل
         } catch (error) {
-            ErrorHandler.handleError(this.bot, chatId, `❌ فشل تحويل الملف: ${error.message}`);
+            ErrorHandler.handleError(this.bot, chatId, error.message);
         }
     }
 
-    // تحويل ملف إلى PDF
-    async convertFileToPDF(inputPath) {
-        const outputFilePath = `${inputPath.replace(/\.txt$/, '')}.pdf`; // استخدام نفس اسم الملف مع إضافة .pdf
-        const text = fs.readFileSync(inputPath, 'utf-8');
-        
-        await PDFConverter.textToPDF(text, outputFilePath);
-        return outputFilePath;
+    // تحويل النص إلى PDF
+    async convertTextToPDF(chatId, text) {
+        const formats = [
+            { title: 'تنسيق 1: نص عادي', formatFunction: (doc) => doc.text(text) },
+            { title: 'تنسيق 2: نص مع عنوان', formatFunction: (doc) => {
+                doc.fontSize(20).text('عنوان PDF', { align: 'center' });
+                doc.moveDown();
+                doc.fontSize(12).text(text);
+            }},
+            { title: 'تنسيق 3: نص مع ترقيم', formatFunction: (doc) => {
+                const lines = text.split('\n');
+                lines.forEach((line, index) => {
+                    doc.text(`${index + 1}. ${line}`);
+                });
+            }}
+        ];
+
+        const currentFormat = formats[this.currentFormatIndex[chatId]];
+        const outputFilePath = `./output_${chatId}.pdf`;
+
+        try {
+            await PDFConverter.textToPDF(text, outputFilePath, currentFormat.formatFunction);
+            await this.bot.sendDocument(chatId, outputFilePath);
+            fs.unlinkSync(outputFilePath); // حذف الملف بعد الإرسال
+        } catch (error) {
+            ErrorHandler.handleError(this.bot, chatId, error.message);
+        }
     }
 }
 
-// بدء البوت
+// إنشاء بوت تليجرام وتشغيله
 const token = '8062134382:AAGaHawjiD48hprrTw7egO2ehjPgkgNo_OY';
-const bot = new TelegramPDFBot(token);
+const telegramPDFBot = new TelegramPDFBot(token);
